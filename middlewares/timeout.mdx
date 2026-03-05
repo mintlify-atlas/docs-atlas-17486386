@@ -96,7 +96,7 @@ The middleware returns a proper HTTP 504 status code, indicating that the server
 To configure the timeout duration, you'll need to modify the middleware or create a custom version. Here's an example with a 30-second timeout:
 
 ```typescript
-import { MiddlewarePipeline } from "asimilation";
+import { MiddlewarePipeline } from "@asimilation/core";
 
 MiddlewarePipeline.addMiddleware(
     async (req, res, next) => {
@@ -140,7 +140,7 @@ The timeout middleware is part of the default middleware stack. Import it to ena
 
 ```typescript
 import "asimilation/default/middleware/timeout";
-import { asi, url } from "asimilation";
+import { asi, url } from "@asimilation/core";
 
 // Define routes
 url.get("/long-task", async (req, res) => {

@@ -9,7 +9,7 @@ icon: 'filter'
 Middleware types define the function signatures for middleware that runs before controllers in Asimilation. There are two middleware types: `MiddlewareFunction` (synchronous) and `MiddlewareFunctionAsync` (asynchronous).
 
 ```typescript
-import type { Types } from 'asimilation';
+import type { Types } from '@asimilation/core';
 
 // Access types
 type MiddlewareFunction = Types.MiddlewareFunction;
@@ -77,8 +77,8 @@ type MiddlewareFunctionAsync = (
 ### Basic Logging Middleware
 
 ```typescript
-import { MiddlewarePipeline } from 'asimilation';
-import type { Types } from 'asimilation';
+import { MiddlewarePipeline } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const logger: Types.MiddlewareFunction = (req, res, next) => {
   console.log(`${req.method} ${req.url}`);
@@ -91,8 +91,8 @@ MiddlewarePipeline.addMiddleware(logger);
 ### Authentication Middleware
 
 ```typescript
-import { MiddlewarePipeline } from 'asimilation';
-import type { Types } from 'asimilation';
+import { MiddlewarePipeline } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const authMiddleware: Types.MiddlewareFunction = (req, res, next) => {
   const token = req.headers.authorization;
@@ -117,8 +117,8 @@ MiddlewarePipeline.addMiddleware(authMiddleware);
 ### Async Database Middleware
 
 ```typescript
-import { MiddlewarePipeline } from 'asimilation';
-import type { Types } from 'asimilation';
+import { MiddlewarePipeline } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const dbMiddleware: Types.MiddlewareFunctionAsync = async (req, res, next) => {
   try {
@@ -140,8 +140,8 @@ MiddlewarePipeline.addMiddleware(dbMiddleware);
 ### Request Timing Middleware
 
 ```typescript
-import type { Types } from 'asimilation';
-import { MiddlewarePipeline } from 'asimilation';
+import type { Types } from '@asimilation/core';
+import { MiddlewarePipeline } from '@asimilation/core';
 
 const timingMiddleware: Types.MiddlewareFunction = (req, res, next) => {
   const start = Date.now();
@@ -165,8 +165,8 @@ MiddlewarePipeline.addMiddleware(timingMiddleware);
 ### CORS Middleware
 
 ```typescript
-import type { Types } from 'asimilation';
-import { MiddlewarePipeline } from 'asimilation';
+import type { Types } from '@asimilation/core';
+import { MiddlewarePipeline } from '@asimilation/core';
 
 const corsMiddleware: Types.MiddlewareFunction = (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -188,8 +188,8 @@ MiddlewarePipeline.addMiddleware(corsMiddleware);
 ### Request Body Parser
 
 ```typescript
-import type { Types } from 'asimilation';
-import { MiddlewarePipeline } from 'asimilation';
+import type { Types } from '@asimilation/core';
+import { MiddlewarePipeline } from '@asimilation/core';
 
 const bodyParser: Types.MiddlewareFunctionAsync = async (req, res, next) => {
   if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
@@ -221,8 +221,8 @@ MiddlewarePipeline.addMiddleware(bodyParser);
 ### Route-Specific Middleware
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const adminOnly: Types.MiddlewareFunction = (req, res, next) => {
   const userRole = (req as any).user?.role;
@@ -245,8 +245,8 @@ url.addPath('/admin/users', (req, res) => {
 ### Error Handling Middleware
 
 ```typescript
-import type { Types } from 'asimilation';
-import { MiddlewarePipeline } from 'asimilation';
+import type { Types } from '@asimilation/core';
+import { MiddlewarePipeline } from '@asimilation/core';
 
 const errorHandler: Types.MiddlewareFunction = (req, res, next) => {
   try {
@@ -266,8 +266,8 @@ MiddlewarePipeline.addMiddleware(errorHandler);
 ### Rate Limiting Middleware
 
 ```typescript
-import type { Types } from 'asimilation';
-import { MiddlewarePipeline } from 'asimilation';
+import type { Types } from '@asimilation/core';
+import { MiddlewarePipeline } from '@asimilation/core';
 
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
 
@@ -303,8 +303,8 @@ MiddlewarePipeline.addMiddleware(rateLimiter);
 ### Conditional Middleware
 
 ```typescript
-import type { Types } from 'asimilation';
-import { MiddlewarePipeline } from 'asimilation';
+import type { Types } from '@asimilation/core';
+import { MiddlewarePipeline } from '@asimilation/core';
 
 const conditionalAuth: Types.MiddlewareFunction = (req, res, next) => {
   const publicPaths = ['/login', '/register', '/health', '/'];
@@ -331,8 +331,8 @@ MiddlewarePipeline.addMiddleware(conditionalAuth);
 ### Multiple Middleware Chain
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const logRequest: Types.MiddlewareFunction = (req, res, next) => {
   console.log(`Request: ${req.method} ${req.url}`);
@@ -373,8 +373,8 @@ Middleware executes in the following order:
 3. **Controller function**
 
 ```typescript
-import { MiddlewarePipeline, url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { MiddlewarePipeline, url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 // 1. Global middleware
 const globalMiddleware: Types.MiddlewareFunction = (req, res, next) => {

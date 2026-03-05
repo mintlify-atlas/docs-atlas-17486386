@@ -9,7 +9,7 @@ icon: 'filter'
 The `MiddlewarePipeline` is a singleton instance that manages the execution of global middleware functions in your Asimilation application. It provides a centralized way to add middleware that runs on every request.
 
 ```typescript
-import { MiddlewarePipeline } from 'asimilation';
+import { MiddlewarePipeline } from '@asimilation/core';
 ```
 
 <Note>
@@ -67,7 +67,7 @@ Adds a global middleware function to the pipeline. Global middleware runs on eve
 **Example:**
 
 ```typescript
-import { MiddlewarePipeline } from 'asimilation';
+import { MiddlewarePipeline } from '@asimilation/core';
 
 // Synchronous middleware
 MiddlewarePipeline.addMiddleware((req, res, next) => {
@@ -143,7 +143,7 @@ Executes route-specific middleware in sequence, followed by a callback middlewar
 ### Logging Middleware
 
 ```typescript
-import { MiddlewarePipeline, asi, url } from 'asimilation';
+import { MiddlewarePipeline, asi, url } from '@asimilation/core';
 
 // Add global logging middleware
 MiddlewarePipeline.addMiddleware((req, res, next) => {
@@ -167,7 +167,7 @@ asi.run();
 ### Authentication Middleware
 
 ```typescript
-import { MiddlewarePipeline, asi, url } from 'asimilation';
+import { MiddlewarePipeline, asi, url } from '@asimilation/core';
 
 // Global authentication check
 MiddlewarePipeline.addMiddleware((req, res, next) => {
@@ -203,7 +203,7 @@ asi.run();
 ### CORS Middleware
 
 ```typescript
-import { MiddlewarePipeline } from 'asimilation';
+import { MiddlewarePipeline } from '@asimilation/core';
 
 MiddlewarePipeline.addMiddleware((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -223,7 +223,7 @@ MiddlewarePipeline.addMiddleware((req, res, next) => {
 ### Request Body Parser
 
 ```typescript
-import { MiddlewarePipeline } from 'asimilation';
+import { MiddlewarePipeline } from '@asimilation/core';
 
 MiddlewarePipeline.addMiddleware(async (req, res, next) => {
   if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
@@ -253,7 +253,7 @@ MiddlewarePipeline.addMiddleware(async (req, res, next) => {
 ### Multiple Middleware
 
 ```typescript
-import { MiddlewarePipeline, asi, url } from 'asimilation';
+import { MiddlewarePipeline, asi, url } from '@asimilation/core';
 
 // Middleware 1: Request ID
 MiddlewarePipeline.addMiddleware((req, res, next) => {
@@ -309,7 +309,7 @@ Middleware executes in the following order:
 3. **Controller function** (the route handler)
 
 ```typescript
-import { MiddlewarePipeline, url } from 'asimilation';
+import { MiddlewarePipeline, url } from '@asimilation/core';
 
 // 1. Runs first (global)
 MiddlewarePipeline.addMiddleware((req, res, next) => {

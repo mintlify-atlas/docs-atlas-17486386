@@ -99,8 +99,8 @@ url.addPath("/<int:id>", (req, res) => {
   }, 200);
 });
 
-// Dynamic route with string parameter
-url.addPath("/posts/<str:slug>", (req, res) => {
+// Dynamic route with slug parameter
+url.addPath("/posts/<slug:slug>", (req, res) => {
   const postSlug = req.params.slug;
   res.sendJson({ 
     message: `Post slug: ${postSlug}`,
@@ -114,7 +114,9 @@ asi.run();
 <Tip>
 Asimilation supports Django-style URL patterns:
 - `<int:name>` - Matches integers only
-- `<str:name>` - Matches strings
+- `<string:name>` - Matches strings (letters only)
+- `<slug:name>` - Matches URL slugs (lowercase letters, numbers, hyphens)
+- `<boolean:name>` - Matches true/false
 - Parameters are automatically extracted to `req.params`
 </Tip>
 
@@ -128,7 +130,7 @@ curl http://localhost:3000/123
 # Returns: {"message": "User ID: 123", "id": "123"}
 ```
 
-```bash String Parameter
+```bash Slug Parameter
 curl http://localhost:3000/posts/my-first-post
 # Returns: {"message": "Post slug: my-first-post", "slug": "my-first-post"}
 ```
@@ -209,7 +211,7 @@ api.addPath("/posts", (req, res) => {
   res.sendJson({ posts: [] }, 200);
 }, { methods: ["GET"] });
 
-api.addPath("/posts/<str:slug>", (req, res) => {
+api.addPath("/posts/<slug:slug>", (req, res) => {
   res.sendJson({ 
     post: { slug: req.params.slug, title: "Sample Post" }
   }, 200);

@@ -9,7 +9,7 @@ icon: 'route'
 The `url` object is the main route manager for registering HTTP routes in your Asimilation application. It provides methods to define routes with controllers and optional middleware.
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 ```
 
 <Note>
@@ -65,7 +65,7 @@ Registers a new route with a controller function and optional configuration.
 ### Basic Route
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 url.addPath('/hello', (req, res) => {
   res.sendText('Hello, World!', 200);
@@ -106,7 +106,7 @@ url.addPath('/users', (req, res) => {
 ### Route with Middleware
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 const authMiddleware = (req, res, next) => {
   const token = req.headers.authorization;
@@ -133,7 +133,7 @@ url.addPath('/protected', (req, res) => {
 ### Multiple Routes
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 // List all users
 url.addPath('/users', (req, res) => {
@@ -206,7 +206,7 @@ Creates a route module for organizing routes with a common prefix.
 **Example:**
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 const apiV1 = url.createRouteModule('/api/v1');
 

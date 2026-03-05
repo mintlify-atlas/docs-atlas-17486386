@@ -34,7 +34,7 @@ The 404 handler is built into the route manager (see `src/core/router-manager.ts
 When a route exists but doesn't support the requested HTTP method:
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 // Only accepts GET
 url.addPath('/users', handler, { methods: ['GET'] });
@@ -146,7 +146,7 @@ Use appropriate status codes for different error scenarios:
 Handle input validation errors with appropriate messages:
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 url.addPath('/users', (req, res) => {
   const body = (req as any).body;
@@ -180,7 +180,7 @@ url.addPath('/users', (req, res) => {
 Create middleware to catch and handle errors globally:
 
 ```typescript
-import { MiddlewarePipeline } from 'asimilation';
+import { MiddlewarePipeline } from '@asimilation/core';
 
 MiddlewarePipeline.addMiddleware((req, res, next) => {
   try {
@@ -208,7 +208,7 @@ Asimilation includes a default error-handling middleware (see `src/default/middl
 Wrap async route handlers with try-catch:
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 url.addPath('/users/<int:id>', async (req, res) => {
   try {
@@ -266,7 +266,7 @@ class UnauthorizedError extends Error {
 Throw custom errors and handle them in middleware:
 
 ```typescript
-import { url, MiddlewarePipeline } from 'asimilation';
+import { url, MiddlewarePipeline } from '@asimilation/core';
 
 // Error handling middleware
 MiddlewarePipeline.addMiddleware((req, res, next) => {
@@ -357,7 +357,7 @@ Exception types are defined in `src/exceptions/` directory.
 Create a catch-all route to handle 404s with custom logic:
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 // All your normal routes
 url.addPath('/users', usersHandler);
@@ -442,7 +442,7 @@ url.addPath('/users', (req, res) => {
 Log errors for debugging and monitoring:
 
 ```typescript
-import { MiddlewarePipeline } from 'asimilation';
+import { MiddlewarePipeline } from '@asimilation/core';
 
 MiddlewarePipeline.addMiddleware((req, res, next) => {
   try {

@@ -9,7 +9,7 @@ icon: 'code'
 Controller types define the function signatures for handling HTTP requests in Asimilation. There are two main controller types: `Controller` (with extended request/response objects) and `BasicController` (with standard Node.js HTTP objects).
 
 ```typescript
-import type { Types } from 'asimilation';
+import type { Types } from '@asimilation/core';
 
 // Access types
 type Controller = Types.Controller;
@@ -81,8 +81,8 @@ type BasicController = (
 ### Basic Controller
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const getUsers: Types.Controller = (req, res) => {
   const users = [
@@ -99,8 +99,8 @@ url.addPath('/users', getUsers);
 ### Controller with Path Parameters
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const getUserById: Types.Controller = (req, res) => {
   const { id } = req.params;
@@ -117,8 +117,8 @@ url.addPath('/users/:id', getUserById);
 ### Controller with Multiple Parameters
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const getComment: Types.Controller = (req, res) => {
   const { postId, commentId } = req.params;
@@ -136,8 +136,8 @@ url.addPath('/posts/:postId/comments/:commentId', getComment);
 ### Controller with Headers
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const authenticatedRoute: Types.Controller = (req, res) => {
   const authHeader = req.headers.authorization;
@@ -156,8 +156,8 @@ url.addPath('/protected', authenticatedRoute);
 ### Controller with Query Parameters
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const searchUsers: Types.Controller = (req, res) => {
   // Parse query string from URL
@@ -182,8 +182,8 @@ url.addPath('/search', searchUsers);
 ### Text Response Controller
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const getHello: Types.Controller = (req, res) => {
   res.sendText('Hello, World!', 200);
@@ -195,8 +195,8 @@ url.addPath('/hello', getHello);
 ### Redirect Controller
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const oldRoute: Types.Controller = (req, res) => {
   res.redirect('/new-route', 301); // Permanent redirect
@@ -213,8 +213,8 @@ url.addPath('/temp', temporaryRedirect);
 ### Async Controller Pattern
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const getUsers: Types.Controller = async (req, res) => {
   try {
@@ -240,8 +240,8 @@ url.addPath('/users', getUsers);
 ### Error Handling Controller
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const safeController: Types.Controller = async (req, res) => {
   try {
@@ -266,8 +266,8 @@ url.addPath('/risky', safeController);
 ### Controller with Request Body
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const createUser: Types.Controller = (req, res) => {
   let body = '';
@@ -343,8 +343,8 @@ res.redirect('/new-url', 307);      // 307 temporary redirect (preserve method)
 ## Type Safety
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 // Explicitly typed controller
 const typedController: Types.Controller = (req, res) => {

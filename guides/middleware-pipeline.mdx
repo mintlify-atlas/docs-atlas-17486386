@@ -20,7 +20,7 @@ Middleware is a function that executes in the request/response cycle before your
 Middleware functions have three parameters:
 
 ```typescript
-import { ArgumentedIncomingMessageAbc, ArgumentedServerResponseAbc } from 'asimilation';
+import { ArgumentedIncomingMessageAbc, ArgumentedServerResponseAbc } from '@asimilation/core';
 
 function myMiddleware(
   req: ArgumentedIncomingMessageAbc,
@@ -43,7 +43,7 @@ Always call `next()` to continue the middleware pipeline. Forgetting to call `ne
 Global middleware runs on every request. Add it using `MiddlewarePipeline`:
 
 ```typescript
-import { MiddlewarePipeline } from 'asimilation';
+import { MiddlewarePipeline } from '@asimilation/core';
 
 MiddlewarePipeline.addMiddleware((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
@@ -60,7 +60,7 @@ Global middleware is managed by the `MiddlewareManager` singleton (see `src/core
 <CodeGroup>
 
 ```typescript Request Logging
-import { MiddlewarePipeline } from 'asimilation';
+import { MiddlewarePipeline } from '@asimilation/core';
 
 MiddlewarePipeline.addMiddleware((req, res, next) => {
   const start = Date.now();
@@ -77,7 +77,7 @@ MiddlewarePipeline.addMiddleware((req, res, next) => {
 ```
 
 ```typescript CORS Headers
-import { MiddlewarePipeline } from 'asimilation';
+import { MiddlewarePipeline } from '@asimilation/core';
 
 MiddlewarePipeline.addMiddleware((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -96,7 +96,7 @@ MiddlewarePipeline.addMiddleware((req, res, next) => {
 ```
 
 ```typescript Request ID
-import { MiddlewarePipeline } from 'asimilation';
+import { MiddlewarePipeline } from '@asimilation/core';
 import { randomUUID } from 'crypto';
 
 MiddlewarePipeline.addMiddleware((req, res, next) => {
@@ -111,7 +111,7 @@ MiddlewarePipeline.addMiddleware((req, res, next) => {
 ```
 
 ```typescript Content-Type Parser
-import { MiddlewarePipeline } from 'asimilation';
+import { MiddlewarePipeline } from '@asimilation/core';
 
 MiddlewarePipeline.addMiddleware((req, res, next) => {
   if (req.method === 'POST' || req.method === 'PUT') {
@@ -142,7 +142,7 @@ MiddlewarePipeline.addMiddleware((req, res, next) => {
 Apply middleware to specific routes using the `handlers` option:
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 function authMiddleware(req, res, next) {
   const token = req.headers.authorization;
@@ -175,7 +175,7 @@ Route-specific middleware is defined in the `PathKwargs` type (see `src/core/typ
 Chain multiple middlewares for a single route:
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 function authenticate(req, res, next) {
   // Check authentication
@@ -237,7 +237,7 @@ Middleware executes in a specific order:
 </Steps>
 
 ```typescript
-import { MiddlewarePipeline, url } from 'asimilation';
+import { MiddlewarePipeline, url } from '@asimilation/core';
 
 // 1. Global middleware (runs first)
 MiddlewarePipeline.addMiddleware((req, res, next) => {
@@ -284,7 +284,7 @@ The middleware execution order is managed by the router (see `src/core/router-ma
 Middleware can be asynchronous:
 
 ```typescript
-import { MiddlewarePipeline } from 'asimilation';
+import { MiddlewarePipeline } from '@asimilation/core';
 import { MiddlewareFunctionAsync } from 'asimilation/types';
 
 const asyncMiddleware: MiddlewareFunctionAsync = async (req, res, next) => {
@@ -310,7 +310,7 @@ Both `MiddlewareFunction` and `MiddlewareFunctionAsync` are supported (see `src/
 Middleware can attach data to the request object for later use:
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 function attachTimestamp(req, res, next) {
   (req as any).timestamp = Date.now();
@@ -363,7 +363,7 @@ function rateLimiter(req, res, next) {
 Handle errors gracefully in middleware:
 
 ```typescript
-import { MiddlewarePipeline } from 'asimilation';
+import { MiddlewarePipeline } from '@asimilation/core';
 
 // Built-in error handling middleware
 MiddlewarePipeline.addMiddleware((req, res, next) => {

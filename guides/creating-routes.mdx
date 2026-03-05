@@ -11,8 +11,8 @@ Routes are the foundation of your Asimilation application. This guide will walk 
 Use the `addPath()` method to create a route. Routes are added to the `url` manager exported from Asimilation:
 
 ```typescript
-import { url } from 'asimilation';
-import { ArgumentedIncomingMessageAbc, ArgumentedServerResponseAbc } from 'asimilation';
+import { url } from '@asimilation/core';
+import { ArgumentedIncomingMessageAbc, ArgumentedServerResponseAbc } from '@asimilation/core';
 
 url.addPath('/hello', (req: ArgumentedIncomingMessageAbc, res: ArgumentedServerResponseAbc) => {
   res.sendJson({ message: 'Hello, World!' }, 200);
@@ -101,7 +101,7 @@ Path normalization is handled by the `normalizePath()` function (see `src/helper
 For larger applications, organize routes using `RouteModule`. This allows you to create namespaced route groups:
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 // Create a module with a base path
 const apiModule = url.createRouteModule('/api');
@@ -141,7 +141,7 @@ For better code organization, split routes into separate files:
 <CodeGroup>
 
 ```typescript routes/users.ts
-import { RouteManagerI } from 'asimilation';
+import { RouteManagerI } from '@asimilation/core';
 
 export function registerUserRoutes(router: RouteManagerI) {
   router.addPath('/users', (req, res) => {
@@ -155,7 +155,7 @@ export function registerUserRoutes(router: RouteManagerI) {
 ```
 
 ```typescript routes/posts.ts
-import { RouteManagerI } from 'asimilation';
+import { RouteManagerI } from '@asimilation/core';
 
 export function registerPostRoutes(router: RouteManagerI) {
   router.addPath('/posts', (req, res) => {
@@ -165,7 +165,7 @@ export function registerPostRoutes(router: RouteManagerI) {
 ```
 
 ```typescript main.ts
-import { asi, url } from 'asimilation';
+import { asi, url } from '@asimilation/core';
 import { registerUserRoutes } from './routes/users';
 import { registerPostRoutes } from './routes/posts';
 

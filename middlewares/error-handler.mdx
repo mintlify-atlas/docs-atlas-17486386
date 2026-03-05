@@ -75,7 +75,7 @@ The error handler is part of the default middleware stack. Import it to enable:
 
 ```typescript
 import "asimilation/default/middleware/error-handling";
-import { asi, url } from "asimilation";
+import { asi, url } from "@asimilation/core";
 
 // Define routes
 url.get("/", (req, res) => {
@@ -152,7 +152,7 @@ You can create custom error handling middleware with additional features:
 ### Custom Error Response
 
 ```typescript
-import { MiddlewarePipeline } from "asimilation";
+import { MiddlewarePipeline } from "@asimilation/core";
 
 MiddlewarePipeline.addMiddleware((req, res, next) => {
     try {

@@ -11,7 +11,7 @@ Dynamic routes allow you to capture parameters from the URL path, enabling you t
 Define dynamic parameters using angle brackets with a type and name:
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 url.addPath('/users/<int:id>', (req, res) => {
   const userId = req.params.id;

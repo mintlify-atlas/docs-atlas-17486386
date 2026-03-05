@@ -12,7 +12,7 @@ Asimilation's routing system provides a flexible way to map URLs to handler func
 Routes are registered using the `addPath()` method on the URL manager. The simplest form accepts a path and a controller function:
 
 ```typescript
-import { url } from "asimilation";
+import { url } from "@asimilation/core";
 
 url.addPath("/", (req, res) => {
   res.sendJson({ message: "Hello World" }, 200);
@@ -199,7 +199,7 @@ When you call `addPath()`, the following happens (see `abstract/add_path_abstrac
 ## Example: Building a RESTful API
 
 ```typescript
-import { url } from "asimilation";
+import { url } from "@asimilation/core";
 
 // List all users
 url.addPath("/api/users", (req, res) => {

@@ -9,7 +9,7 @@ icon: 'gear'
 The `PathKwargs` type defines optional configuration parameters for route registration. It allows you to specify HTTP methods and route-specific middleware when adding routes.
 
 ```typescript
-import type { Types } from 'asimilation';
+import type { Types } from '@asimilation/core';
 
 type PathKwargs = Types.PathKwargs;
 ```
@@ -51,7 +51,7 @@ type PathKwargs = {
 ### Basic Method Restriction
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 // Only allow GET requests
 url.addPath('/users', (req, res) => {
@@ -71,7 +71,7 @@ url.addPath('/users', (req, res) => {
 ### Multiple Methods
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 // Allow both PUT and PATCH
 url.addPath('/users/:id', (req, res) => {
@@ -85,8 +85,8 @@ url.addPath('/users/:id', (req, res) => {
 ### Route-Specific Middleware
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const authMiddleware: Types.MiddlewareFunction = (req, res, next) => {
   const token = req.headers.authorization;
@@ -107,8 +107,8 @@ url.addPath('/protected', (req, res) => {
 ### Multiple Middleware
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const logMiddleware: Types.MiddlewareFunction = (req, res, next) => {
   console.log(`${req.method} ${req.url}`);
@@ -140,8 +140,8 @@ url.addPath('/api/users', (req, res) => {
 ### Methods and Middleware Combined
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const authMiddleware: Types.MiddlewareFunction = (req, res, next) => {
   const token = req.headers.authorization;
@@ -174,8 +174,8 @@ url.addPath('/users/:id', (req, res) => {
 ### REST API Pattern
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const authMiddleware: Types.MiddlewareFunction = (req, res, next) => {
   // Auth logic
@@ -227,8 +227,8 @@ url.addPath('/users/:id', (req, res) => {
 ### Async Middleware
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const dbMiddleware: Types.MiddlewareFunctionAsync = async (req, res, next) => {
   try {
@@ -256,8 +256,8 @@ url.addPath('/data', (req, res) => {
 ### CORS Options Handler
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const corsMiddleware: Types.MiddlewareFunction = (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -287,8 +287,8 @@ url.addPath('/api/users', (req, res) => {
 ### Validation Middleware
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const validateUserData: Types.MiddlewareFunctionAsync = async (req, res, next) => {
   const chunks: Buffer[] = [];
@@ -324,8 +324,8 @@ url.addPath('/users', (req, res) => {
 ### Route Module with PathKwargs
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimulation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 const authMiddleware: Types.MiddlewareFunction = (req, res, next) => {
   // Auth logic
@@ -360,8 +360,8 @@ api.addPath('/users/:id', (req, res) => {
 </Note>
 
 ```typescript
-import { MiddlewarePipeline, url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { MiddlewarePipeline, url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 // 1. Global middleware
 MiddlewarePipeline.addMiddleware((req, res, next) => {
@@ -392,8 +392,8 @@ url.addPath('/test', (req, res) => {
 ## Type Safety
 
 ```typescript
-import { url } from 'asimilation';
-import type { Types } from 'asimilation';
+import { url } from '@asimilation/core';
+import type { Types } from '@asimilation/core';
 
 // Explicitly typed PathKwargs
 const routeConfig: Types.PathKwargs = {

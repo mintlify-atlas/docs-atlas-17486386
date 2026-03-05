@@ -34,7 +34,7 @@ Global middlewares run on every request before any route handler. They're perfec
 ### Adding Global Middlewares
 
 ```typescript
-import { MiddlewarePipeline } from "asimilation";
+import { MiddlewarePipeline } from "@asimilation/core";
 
 // Add a logging middleware
 MiddlewarePipeline.addMiddleware((req, res, next) => {
@@ -63,7 +63,7 @@ Global middlewares are stored in an array and executed sequentially (see `middle
 Route-specific middlewares only run for particular routes. They're added using the `handlers` option in `addPath()`:
 
 ```typescript
-import { url } from "asimilation";
+import { url } from "@asimilation/core";
 
 // Authentication middleware
 const requireAuth = (req, res, next) => {
@@ -326,7 +326,7 @@ function dispatch(index: number): Promise<void> {
 ## Combining Global and Route Middlewares
 
 ```typescript
-import { MiddlewarePipeline, url } from "asimilation";
+import { MiddlewarePipeline, url } from "@asimilation/core";
 
 // Global: runs on all routes
 MiddlewarePipeline.addMiddleware((req, res, next) => {

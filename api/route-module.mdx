@@ -9,7 +9,7 @@ icon: 'folder-tree'
 The `RouteModule` class allows you to organize routes hierarchically with shared path prefixes. It's perfect for structuring API versions, grouping related endpoints, or creating modular route configurations.
 
 ```typescript
-import { RouteModule, url } from 'asimilation';
+import { RouteModule, url } from '@asimilation/core';
 ```
 
 ## Type Definition
@@ -33,7 +33,7 @@ There are two ways to create a `RouteModule`:
 </Note>
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 const apiV1 = url.createRouteModule('/api/v1');
 ```
@@ -41,8 +41,8 @@ const apiV1 = url.createRouteModule('/api/v1');
 ### 2. Direct Instantiation
 
 ```typescript
-import { RouteModule } from 'asimilation';
-import { url } from 'asimilation';
+import { RouteModule } from '@asimilation/core';
+import { url } from '@asimilation/core';
 
 // Not recommended - use url.createRouteModule() instead
 const apiV1 = new RouteModule(url, '/api/v1');
@@ -136,7 +136,7 @@ v2.addPath('/users', handler); // /api/v2/users
 ### Basic Module Usage
 
 ```typescript
-import { url, asi } from 'asimilation';
+import { url, asi } from '@asimilation/core';
 
 const apiV1 = url.createRouteModule('/api/v1');
 
@@ -156,7 +156,7 @@ asi.run();
 ### Nested Modules
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 // Create base API module
 const api = url.createRouteModule('/api');
@@ -181,7 +181,7 @@ v2.addPath('/users', (req, res) => {
 ### Resource-Based Organization
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 const api = url.createRouteModule('/api');
 
@@ -216,7 +216,7 @@ posts.addPath('/:id/comments', (req, res) => {
 
 **routes/users.ts**
 ```typescript
-import { RouteModule } from 'asimilation';
+import { RouteModule } from '@asimilation/core';
 
 export function registerUserRoutes(module: RouteModule) {
   module.addPath('/', (req, res) => {
@@ -236,7 +236,7 @@ export function registerUserRoutes(module: RouteModule) {
 
 **routes/posts.ts**
 ```typescript
-import { RouteModule } from 'asimilation';
+import { RouteModule } from '@asimilation/core';
 
 export function registerPostRoutes(module: RouteModule) {
   module.addPath('/', (req, res) => {
@@ -252,7 +252,7 @@ export function registerPostRoutes(module: RouteModule) {
 
 **index.ts**
 ```typescript
-import { url, asi } from 'asimilation';
+import { url, asi } from '@asimilation/core';
 import { registerUserRoutes } from './routes/users';
 import { registerPostRoutes } from './routes/posts';
 
@@ -271,7 +271,7 @@ asi.run();
 ### With Middleware
 
 ```typescript
-import { url } from 'asimilation';
+import { url } from '@asimilation/core';
 
 const authMiddleware = (req, res, next) => {
   const token = req.headers.authorization;

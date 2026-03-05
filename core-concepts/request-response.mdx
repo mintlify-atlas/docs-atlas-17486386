@@ -307,7 +307,7 @@ url.addPath("/download", async (req, res) => {
 Here's a complete example using request and response features:
 
 ```typescript
-import { url } from "asimilation";
+import { url } from "@asimilation/core";
 
 // GET user by ID
 url.addPath("/api/users/<int:id>", (req, res) => {
@@ -427,7 +427,7 @@ When a request is received (see `router-manager.ts:103-146`):
 For better type safety in TypeScript, you can create custom types:
 
 ```typescript
-import { ArgumentedIncomingMessageAbc, ArgumentedServerResponseAbc } from "asimilation";
+import { ArgumentedIncomingMessageAbc, ArgumentedServerResponseAbc } from "@asimilation/core";
 
 interface RequestWithUser extends ArgumentedIncomingMessageAbc {
   user?: {

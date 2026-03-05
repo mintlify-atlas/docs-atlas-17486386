@@ -25,7 +25,7 @@ Defined in `core/router-manager.ts:154-172`.
 Create a route module using `createRouteModule()` on the URL manager:
 
 ```typescript
-import { url } from "asimilation";
+import { url } from "@asimilation/core";
 
 // Create a module for API routes
 const apiModule = url.createRouteModule("/api");
@@ -49,7 +49,7 @@ The namespace path is automatically normalized, so leading slashes are optional 
 Route modules can be nested to create deeper hierarchies:
 
 ```typescript
-import { url } from "asimilation";
+import { url } from "@asimilation/core";
 
 // Create API module
 const apiModule = url.createRouteModule("/api");
@@ -95,7 +95,7 @@ Don't worry about leading or trailing slashes - Asimilation handles them automat
 Here's how to organize a complete RESTful API using route modules:
 
 ```typescript
-import { url } from "asimilation";
+import { url } from "@asimilation/core";
 
 // Create main API module
 const apiModule = url.createRouteModule("/api");
@@ -201,7 +201,7 @@ Organize your code by splitting modules into separate files:
 ### routes/users.ts
 
 ```typescript
-import { RouteModule } from "asimilation";
+import { RouteModule } from "@asimilation/core";
 
 export function setupUserRoutes(parent: RouteModule) {
   const users = parent.createRouteModule("/users");
@@ -220,7 +220,7 @@ export function setupUserRoutes(parent: RouteModule) {
 ### routes/posts.ts
 
 ```typescript
-import { RouteModule } from "asimilation";
+import { RouteModule } from "@asimilation/core";
 
 export function setupPostRoutes(parent: RouteModule) {
   const posts = parent.createRouteModule("/posts");
@@ -239,7 +239,7 @@ export function setupPostRoutes(parent: RouteModule) {
 ### routes/index.ts
 
 ```typescript
-import { url } from "asimilation";
+import { url } from "@asimilation/core";
 import { setupUserRoutes } from "./users.js";
 import { setupPostRoutes } from "./posts.js";
 
@@ -254,7 +254,7 @@ export { apiModule };
 ### main.ts
 
 ```typescript
-import { asi } from "asimilation";
+import { asi } from "@asimilation/core";
 import "./routes/index.js";
 
 asi.setup(3000, import.meta.url);

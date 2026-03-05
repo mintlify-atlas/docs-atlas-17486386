@@ -9,7 +9,7 @@ icon: 'server'
 The `asi` object is the main server instance of the Asimilation framework. It provides methods to configure your server settings and start the HTTP server.
 
 ```typescript
-import { asi } from 'asimilation';
+import { asi } from '@asimilation/core';
 ```
 
 ## Type Definition
@@ -45,7 +45,7 @@ Configures the server port and base path before starting the server.
 **Example:**
 
 ```typescript
-import { asi } from 'asimilation';
+import { asi } from '@asimilation/core';
 
 // Configure server to run on port 3000 with no base path
 asi.setup(3000, '');
@@ -73,7 +73,7 @@ Starts the HTTP server and begins listening for incoming requests.
 **Example:**
 
 ```typescript
-import { asi } from 'asimilation';
+import { asi } from '@asimilation/core';
 
 asi.setup(3000, '');
 asi.run(); // Server starts listening on port 3000
@@ -96,7 +96,7 @@ Returns the route manager instance for programmatic route manipulation.
 **Example:**
 
 ```typescript
-import { asi } from 'asimilation';
+import { asi } from '@asimilation/core';
 
 const routeManager = asi.urlManager();
 // Use routeManager to manipulate routes programmatically
@@ -129,7 +129,7 @@ Intended for setting a URL prefix for all routes.
 ## Complete Example
 
 ```typescript
-import { asi, url } from 'asimilation';
+import { asi, url } from '@asimilation/core';
 
 // Define routes
 url.addPath('/users', (req, res) => {
