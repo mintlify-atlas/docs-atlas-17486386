@@ -1,0 +1,95 @@
+{
+  "projectType": "framework",
+  "projectName": "Asimilation",
+  "projectDescription": "A lightweight Node.js backend framework for easily creating routes and handling middlewares.",
+  "theme": "aspen",
+  "primaryColor": "#cb0404",
+  "lightColor": "#f3d2d2",
+  "darkColor": "#e37b84",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "core-concepts/routing",
+              "core-concepts/middlewares",
+              "core-concepts/request-response",
+              "core-concepts/route-modules"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/creating-routes",
+              "guides/dynamic-routes",
+              "guides/middleware-pipeline",
+              "guides/error-handling"
+            ]
+          },
+          {
+            "group": "Built-in Middlewares",
+            "pages": [
+              "middlewares/logger",
+              "middlewares/timeout",
+              "middlewares/error-handler"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core API",
+            "pages": [
+              "api/asi",
+              "api/url",
+              "api/route-module",
+              "api/middleware-pipeline"
+            ]
+          },
+          {
+            "group": "Types",
+            "pages": [
+              "api/types/controller",
+              "api/types/middleware",
+              "api/types/path-kwargs"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Lightweight routing with static and dynamic path support",
+    "Flexible middleware pipeline (global and route-specific)",
+    "Route modules for organizing and namespacing routes",
+    "Custom request/response abstractions with helper methods",
+    "Built-in middlewares for logging, timeouts, and error handling",
+    "TypeScript support with full type definitions"
+  ],
+  "publicApiSurface": [
+    "asi - Main server instance",
+    "url - Route manager for adding routes",
+    "RouteModule - Class for creating modular route groups",
+    "MiddlewarePipeline - Middleware management system",
+    "addPath() - Add routes with optional methods and handlers",
+    "setup() - Configure server port and base path",
+    "run() - Start the HTTP server",
+    "createRouteModule() - Create nested route modules",
+    "addMiddleware() - Register global middlewares",
+    "sendJson() - Send JSON responses",
+    "sendText() - Send text responses"
+  ]
+}
