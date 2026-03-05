@@ -1,0 +1,481 @@
+---
+title: "Route Modules"
+description: "Organize your routes into reusable modules with namespacing"
+---
+
+## Overview
+
+Route modules allow you to organize related routes under a common namespace. This is essential for building large applications with many routes, as it helps maintain a clean structure and prevents route clutter.
+
+## What is a Route Module?
+
+A route module is an object that groups related routes under a namespace prefix. All routes added to the module automatically inherit the module's path prefix.
+
+```typescript
+class RouteModule {
+  addPath(path: string, callback: Controller, kwargs?: PathKwargs): void;
+  createRouteModule(name: string): RouteModule;
+}
+```
+
+Defined in `core/router-manager.ts:154-172`.
+
+## Creating Route Modules
+
+Create a route module using `createRouteModule()` on the URL manager:
+
+```typescript
+import { url } from "asimilation";
+
+// Create a module for API routes
+const apiModule = url.createRouteModule("/api");
+
+// All routes in this module start with /api
+apiModule.addPath("/users", (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}); // Registered as /api/users
+
+apiModule.addPath("/posts", (req, res) => {
+  res.sendJson({ posts: [] }, 200);
+}); // Registered as /api/posts
+```
+
+<Note>
+The namespace path is automatically normalized, so leading slashes are optional (see `router-manager.ts:161`).
+</Note>
+
+## Nested Modules
+
+Route modules can be nested to create deeper hierarchies:
+
+```typescript
+import { url } from "asimilation";
+
+// Create API module
+const apiModule = url.createRouteModule("/api");
+
+// Create v1 sub-module
+const v1Module = apiModule.createRouteModule("/v1");
+
+// Add routes to v1
+v1Module.addPath("/users", (req, res) => {
+  res.sendJson({ version: "v1", users: [] }, 200);
+}); // Registered as /api/v1/users
+
+// Create v2 sub-module
+const v2Module = apiModule.createRouteModule("/v2");
+
+v2Module.addPath("/users", (req, res) => {
+  res.sendJson({ version: "v2", users: [] }, 200);
+}); // Registered as /api/v2/users
+```
+
+## Path Normalization
+
+Paths are automatically normalized when creating modules (see `helpers/url-regex.ts:38-47`):
+
+```typescript
+// These all create the same module:
+url.createRouteModule("api");      // Normalized to /api
+url.createRouteModule("/api");     // Already normalized
+url.createRouteModule("//api//");  // Normalized to /api
+
+// The namespace is combined with route paths:
+apiModule.addPath("users");    // /api/users
+apiModule.addPath("/users");   // /api/users
+apiModule.addPath("//users//"); // /api/users
+```
+
+<Tip>
+Don't worry about leading or trailing slashes - Asimilation handles them automatically.
+</Tip>
+
+## Complete Example: RESTful API
+
+Here's how to organize a complete RESTful API using route modules:
+
+```typescript
+import { url } from "asimilation";
+
+// Create main API module
+const apiModule = url.createRouteModule("/api");
+
+// Users module
+const usersModule = apiModule.createRouteModule("/users");
+
+// List users - GET /api/users
+usersModule.addPath("/", (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}, { methods: ["GET"] });
+
+// Get user - GET /api/users/:id
+usersModule.addPath("/<int:id>", (req, res) => {
+  const userId = req.params.id;
+  res.sendJson({ id: userId, name: "John" }, 200);
+}, { methods: ["GET"] });
+
+// Create user - POST /api/users
+usersModule.addPath("/", (req, res) => {
+  res.sendJson({ created: true }, 201);
+}, { methods: ["POST"] });
+
+// Update user - PUT /api/users/:id
+usersModule.addPath("/<int:id>", (req, res) => {
+  const userId = req.params.id;
+  res.sendJson({ updated: true, id: userId }, 200);
+}, { methods: ["PUT"] });
+
+// Delete user - DELETE /api/users/:id
+usersModule.addPath("/<int:id>", (req, res) => {
+  const userId = req.params.id;
+  res.sendJson({ deleted: true, id: userId }, 200);
+}, { methods: ["DELETE"] });
+
+// Posts module
+const postsModule = apiModule.createRouteModule("/posts");
+
+// List posts - GET /api/posts
+postsModule.addPath("/", (req, res) => {
+  res.sendJson({ posts: [] }, 200);
+}, { methods: ["GET"] });
+
+// Get post - GET /api/posts/:slug
+postsModule.addPath("/<slug:slug>", (req, res) => {
+  const slug = req.params.slug;
+  res.sendJson({ slug, title: "Post Title" }, 200);
+}, { methods: ["GET"] });
+```
+
+## Module Organization Patterns
+
+### By Feature
+
+Organize modules around features or resources:
+
+```typescript
+const apiModule = url.createRouteModule("/api");
+
+const usersModule = apiModule.createRouteModule("/users");
+const postsModule = apiModule.createRouteModule("/posts");
+const commentsModule = apiModule.createRouteModule("/comments");
+const authModule = apiModule.createRouteModule("/auth");
+```
+
+### By Version
+
+Version your API routes:
+
+```typescript
+const apiModule = url.createRouteModule("/api");
+
+const v1 = apiModule.createRouteModule("/v1");
+const v2 = apiModule.createRouteModule("/v2");
+
+// v1 endpoints
+v1.addPath("/users", handlerV1);
+
+// v2 endpoints with new features
+v2.addPath("/users", handlerV2);
+```
+
+### By Domain
+
+Separate public and admin areas:
+
+```typescript
+// Public API
+const publicModule = url.createRouteModule("/api/public");
+publicModule.addPath("/posts", getPublicPosts);
+
+// Admin API
+const adminModule = url.createRouteModule("/api/admin");
+adminModule.addPath("/users", getAllUsers, {
+  handlers: [requireAdmin]
+});
+```
+
+## File Organization
+
+Organize your code by splitting modules into separate files:
+
+### routes/users.ts
+
+```typescript
+import { RouteModule } from "asimilation";
+
+export function setupUserRoutes(parent: RouteModule) {
+  const users = parent.createRouteModule("/users");
+  
+  users.addPath("/", (req, res) => {
+    res.sendJson({ users: [] }, 200);
+  }, { methods: ["GET"] });
+  
+  users.addPath("/<int:id>", (req, res) => {
+    const userId = req.params.id;
+    res.sendJson({ id: userId }, 200);
+  }, { methods: ["GET"] });
+}
+```
+
+### routes/posts.ts
+
+```typescript
+import { RouteModule } from "asimilation";
+
+export function setupPostRoutes(parent: RouteModule) {
+  const posts = parent.createRouteModule("/posts");
+  
+  posts.addPath("/", (req, res) => {
+    res.sendJson({ posts: [] }, 200);
+  }, { methods: ["GET"] });
+  
+  posts.addPath("/<slug:slug>", (req, res) => {
+    const slug = req.params.slug;
+    res.sendJson({ slug }, 200);
+  }, { methods: ["GET"] });
+}
+```
+
+### routes/index.ts
+
+```typescript
+import { url } from "asimilation";
+import { setupUserRoutes } from "./users.js";
+import { setupPostRoutes } from "./posts.js";
+
+const apiModule = url.createRouteModule("/api");
+
+setupUserRoutes(apiModule);
+setupPostRoutes(apiModule);
+
+export { apiModule };
+```
+
+### main.ts
+
+```typescript
+import { asi } from "asimilation";
+import "./routes/index.js";
+
+asi.setup(3000, import.meta.url);
+asi.run();
+```
+
+## Middlewares with Modules
+
+Apply middlewares to specific module routes:
+
+```typescript
+const apiModule = url.createRouteModule("/api");
+
+// Authentication middleware
+const requireAuth = (req, res, next) => {
+  if (!req.headers.authorization) {
+    res.sendJson({ error: "Unauthorized" }, 401);
+    return;
+  }
+  next();
+};
+
+// Apply middleware to all routes in module
+apiModule.addPath("/protected", (req, res) => {
+  res.sendJson({ data: "secret" }, 200);
+}, {
+  handlers: [requireAuth]
+});
+
+// Sub-modules inherit no middlewares automatically
+// You need to explicitly add them to each route
+const usersModule = apiModule.createRouteModule("/users");
+
+usersModule.addPath("/", (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}, {
+  handlers: [requireAuth] // Explicitly add middleware
+});
+```
+
+<Warning>
+Middlewares are not inherited by sub-modules. You need to explicitly specify middlewares for each route or use global middlewares.
+</Warning>
+
+## Dynamic Routes in Modules
+
+Modules support all route parameter types:
+
+```typescript
+const apiModule = url.createRouteModule("/api");
+
+// Integer parameter
+apiModule.addPath("/users/<int:id>", (req, res) => {
+  const userId = req.params.id;
+  res.sendJson({ userId }, 200);
+});
+
+// String parameter
+apiModule.addPath("/hello/<string:name>", (req, res) => {
+  const name = req.params.name;
+  res.sendText(`Hello ${name}!`, 200);
+});
+
+// Slug parameter
+apiModule.addPath("/posts/<slug:slug>", (req, res) => {
+  const slug = req.params.slug;
+  res.sendJson({ slug }, 200);
+});
+
+// Boolean parameter
+apiModule.addPath("/settings/<boolean:enabled>", (req, res) => {
+  const enabled = req.params.enabled;
+  res.sendJson({ enabled }, 200);
+});
+
+// Multiple parameters
+apiModule.addPath("/<string:resource>/<int:id>", (req, res) => {
+  const { resource, id } = req.params;
+  res.sendJson({ resource, id }, 200);
+});
+```
+
+## How It Works
+
+When you create a route module (see `router-manager.ts:148-150` and `154-172`):
+
+<Steps>
+  <Step title="Store Reference">
+    The module stores a reference to the parent `RouteManager` and the namespace path.
+  </Step>
+  
+  <Step title="Normalize Namespace">
+    The namespace is normalized using `normalizePath()` (`router-manager.ts:161`).
+  </Step>
+  
+  <Step title="Prefix Routes">
+    When adding a path, the module's namespace is prepended to the route path (`router-manager.ts:165`).
+  </Step>
+  
+  <Step title="Register with Manager">
+    The complete path is registered with the parent `RouteManager` (`router-manager.ts:166`).
+  </Step>
+  
+  <Step title="Support Nesting">
+    Modules can create sub-modules by combining namespaces (`router-manager.ts:169-171`).
+  </Step>
+</Steps>
+
+## Implementation Details
+
+The `RouteModule` class is simple but powerful:
+
+```typescript
+class RouteModule {
+  #manager: RouteManager;
+  #initialPath: string;
+
+  constructor(manager: RouteManager, nameSpace: string) {
+    this.#manager = manager;
+    this.#initialPath = normalizePath(nameSpace);
+  }
+
+  addPath(path: string, callback: Controller, kwargs?: PathKwargs) {
+    // Combine module namespace with route path
+    const contextPath = this.#initialPath + normalizePath(path);
+    // Register with the main manager
+    this.#manager.addPath(contextPath, callback, kwargs);
+  }
+
+  createRouteModule(name: string) {
+    // Create nested module by combining namespaces
+    return new RouteModule(
+      this.#manager,
+      this.#initialPath + normalizePath(name)
+    );
+  }
+}
+```
+
+From `router-manager.ts:154-172`.
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Group related routes" icon="layer-group">
+    Use modules to group routes that belong to the same feature or resource.
+  </Card>
+  
+  <Card title="Keep namespaces short" icon="text-size">
+    Use concise, descriptive namespace names like `/api`, `/admin`, `/v1`.
+  </Card>
+  
+  <Card title="Separate into files" icon="file-code">
+    Split large modules into separate files for better maintainability.
+  </Card>
+  
+  <Card title="Version your APIs" icon="code-branch">
+    Use modules to create versioned API endpoints like `/api/v1` and `/api/v2`.
+  </Card>
+</CardGroup>
+
+## Common Patterns
+
+### Admin Dashboard
+
+```typescript
+const adminModule = url.createRouteModule("/admin");
+
+const requireAdmin = (req, res, next) => {
+  // Check admin permissions
+  next();
+};
+
+adminModule.addPath("/dashboard", (req, res) => {
+  res.sendJson({ stats: {} }, 200);
+}, { handlers: [requireAdmin] });
+
+adminModule.addPath("/users", (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}, { handlers: [requireAdmin] });
+```
+
+### Multi-tenant Application
+
+```typescript
+const tenantModule = url.createRouteModule("/tenant");
+
+tenantModule.addPath("/<string:tenantId>/dashboard", (req, res) => {
+  const tenantId = req.params.tenantId;
+  res.sendJson({ tenant: tenantId }, 200);
+});
+
+tenantModule.addPath("/<string:tenantId>/users", (req, res) => {
+  const tenantId = req.params.tenantId;
+  res.sendJson({ tenant: tenantId, users: [] }, 200);
+});
+```
+
+### Microservices Architecture
+
+```typescript
+// User service routes
+const userServiceModule = url.createRouteModule("/services/users");
+userServiceModule.addPath("/", getUsersHandler);
+
+// Order service routes
+const orderServiceModule = url.createRouteModule("/services/orders");
+orderServiceModule.addPath("/", getOrdersHandler);
+
+// Product service routes
+const productServiceModule = url.createRouteModule("/services/products");
+productServiceModule.addPath("/", getProductsHandler);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Routing" icon="route" href="./routing">
+    Learn more about route parameters and path matching
+  </Card>
+  <Card title="Middlewares" icon="filter" href="./middlewares">
+    Discover how to apply middlewares to module routes
+  </Card>
+</CardGroup>

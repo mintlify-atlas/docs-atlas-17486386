@@ -1,0 +1,396 @@
+---
+title: "Middlewares"
+description: "Learn how to use middlewares to process requests before they reach your route handlers"
+---
+
+## Overview
+
+Middlewares are functions that execute before your route handler. They can modify the request, validate data, check authentication, log information, or terminate the request early. Asimilation supports both global and route-specific middlewares.
+
+## What is a Middleware?
+
+A middleware is a function with the following signature:
+
+```typescript
+type MiddlewareFunction = (
+  req: ArgumentedIncomingMessageAbc,
+  res: ArgumentedServerResponseAbc,
+  next: (error?: Error) => void
+) => void;
+
+type MiddlewareFunctionAsync = (
+  req: ArgumentedIncomingMessageAbc,
+  res: ArgumentedServerResponseAbc,
+  next: (error?: Error) => void
+) => Promise<void>;
+```
+
+The `next` function is crucial - it tells Asimilation to continue to the next middleware or route handler.
+
+## Global Middlewares
+
+Global middlewares run on every request before any route handler. They're perfect for logging, CORS headers, authentication, and other cross-cutting concerns.
+
+### Adding Global Middlewares
+
+```typescript
+import { MiddlewarePipeline } from "asimilation";
+
+// Add a logging middleware
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next(); // Continue to the next middleware or route handler
+});
+
+// Add CORS headers
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+  next();
+});
+```
+
+<Warning>
+Always call `next()` in your middleware unless you want to terminate the request. If you forget to call `next()`, the request will hang.
+</Warning>
+
+### Global Middleware Execution
+
+Global middlewares are stored in an array and executed sequentially (see `middleware-manager.ts:12`). The execution flow is managed by the `MiddlewareManager` class using a dispatch pattern (`middleware-manager.ts:23-44`).
+
+## Route-Specific Middlewares
+
+Route-specific middlewares only run for particular routes. They're added using the `handlers` option in `addPath()`:
+
+```typescript
+import { url } from "asimilation";
+
+// Authentication middleware
+const requireAuth = (req, res, next) => {
+  const token = req.headers.authorization;
+  
+  if (!token) {
+    res.sendJson({ error: "Unauthorized" }, 401);
+    return; // Don't call next() - terminate the request
+  }
+  
+  // Validate token...
+  next(); // Token is valid, continue
+};
+
+// Apply middleware to specific route
+url.addPath("/api/protected", (req, res) => {
+  res.sendJson({ data: "secret" }, 200);
+}, {
+  handlers: [requireAuth]
+});
+```
+
+<Note>
+Route-specific middlewares execute after global middlewares but before the route handler.
+</Note>
+
+## Middleware Execution Order
+
+<Steps>
+  <Step title="Global Middlewares">
+    All global middlewares run first, in the order they were registered (`middleware-manager.ts:46-56`).
+  </Step>
+  
+  <Step title="Route-Specific Middlewares">
+    If the route has specific middlewares, they run next in the order defined in the `handlers` array (`middleware-manager.ts:58-67`).
+  </Step>
+  
+  <Step title="Route Handler">
+    Finally, the route's controller function executes (`router-manager.ts:128-140`).
+  </Step>
+</Steps>
+
+```typescript
+// Execution order example
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  console.log("1. Global middleware");
+  next();
+});
+
+const middleware1 = (req, res, next) => {
+  console.log("2. Route middleware 1");
+  next();
+};
+
+const middleware2 = (req, res, next) => {
+  console.log("3. Route middleware 2");
+  next();
+};
+
+url.addPath("/test", (req, res) => {
+  console.log("4. Route handler");
+  res.sendText("Done", 200);
+}, {
+  handlers: [middleware1, middleware2]
+});
+```
+
+## Writing Custom Middlewares
+
+### Basic Logger Middleware
+
+```typescript
+const logger = (req, res, next) => {
+  const start = Date.now();
+  
+  // Log request
+  console.log(`→ ${req.method} ${req.url}`);
+  
+  // Continue to next middleware
+  next();
+  
+  // Log response time
+  const duration = Date.now() - start;
+  console.log(`← ${req.method} ${req.url} (${duration}ms)`);
+};
+
+MiddlewarePipeline.addMiddleware(logger);
+```
+
+### Authentication Middleware
+
+```typescript
+const authenticate = (req, res, next) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  
+  if (!token) {
+    res.sendJson({ error: "Missing token" }, 401);
+    return; // Terminate - don't call next()
+  }
+  
+  try {
+    // Verify token (pseudo-code)
+    const user = verifyToken(token);
+    
+    // Attach user to request for downstream handlers
+    (req as any).user = user;
+    
+    next(); // Continue to next middleware or handler
+  } catch (error) {
+    res.sendJson({ error: "Invalid token" }, 401);
+    // Don't call next() on error
+  }
+};
+```
+
+### Body Parser Middleware
+
+```typescript
+const bodyParser = async (req, res, next) => {
+  if (req.method === "POST" || req.method === "PUT") {
+    let body = "";
+    
+    req.on("data", (chunk) => {
+      body += chunk.toString();
+    });
+    
+    req.on("end", () => {
+      try {
+        (req as any).body = JSON.parse(body);
+        next(); // Body parsed successfully
+      } catch (error) {
+        res.sendJson({ error: "Invalid JSON" }, 400);
+        // Don't call next() on parse error
+      }
+    });
+  } else {
+    next(); // No body to parse
+  }
+};
+
+MiddlewarePipeline.addMiddleware(bodyParser);
+```
+
+### CORS Middleware
+
+```typescript
+const cors = (req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization"
+  );
+  
+  // Handle preflight requests
+  if (req.method === "OPTIONS") {
+    res.writeHead(204);
+    res.end();
+    return; // Terminate preflight request
+  }
+  
+  next();
+};
+
+MiddlewarePipeline.addMiddleware(cors);
+```
+
+## Async Middlewares
+
+Asimilation supports async middlewares that return a Promise:
+
+```typescript
+const asyncMiddleware = async (req, res, next) => {
+  try {
+    // Perform async operations
+    const data = await fetchFromDatabase();
+    (req as any).data = data;
+    
+    next(); // Continue after async operation
+  } catch (error) {
+    res.sendJson({ error: "Database error" }, 500);
+    // Don't call next() on error
+  }
+};
+
+MiddlewarePipeline.addMiddleware(asyncMiddleware);
+```
+
+## The next() Function
+
+The `next` function is the key to middleware chaining:
+
+### Call next() to continue
+
+```typescript
+const middleware = (req, res, next) => {
+  // Do some processing
+  next(); // Continue to next middleware or handler
+};
+```
+
+### Don't call next() to terminate
+
+```typescript
+const authMiddleware = (req, res, next) => {
+  if (!isAuthenticated(req)) {
+    res.sendJson({ error: "Unauthorized" }, 401);
+    return; // Don't call next() - request ends here
+  }
+  next();
+};
+```
+
+### Error handling with next()
+
+```typescript
+const middleware = (req, res, next) => {
+  try {
+    // Processing...
+    next();
+  } catch (error) {
+    next(error); // Pass error to next middleware
+  }
+};
+```
+
+<Warning>
+If you call `next()` after sending a response, the next middleware will still execute. Make sure to `return` after sending a response if you don't want further processing.
+</Warning>
+
+## Middleware Pipeline Implementation
+
+The middleware pipeline is implemented using a recursive dispatch pattern (see `middleware-manager.ts:23-44`):
+
+1. Middlewares are stored in an array
+2. A `dispatch` function processes them one at a time
+3. Each middleware receives a `next` function that calls `dispatch` for the next index
+4. The pipeline continues until all middlewares complete or one terminates the request
+
+```typescript
+// Simplified version of the internal implementation
+function dispatch(index: number): Promise<void> {
+  if (middlewareList.length == 0) return Promise.resolve();
+  
+  let current = middlewareList[index];
+  if (current) {
+    return Promise.resolve(
+      current(req, res, () => { 
+        dispatch(index + 1) 
+      })
+    );
+  }
+  return Promise.resolve();
+}
+```
+
+## Combining Global and Route Middlewares
+
+```typescript
+import { MiddlewarePipeline, url } from "asimilation";
+
+// Global: runs on all routes
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  console.log("Global logger");
+  next();
+});
+
+// Route-specific: runs only on /admin routes
+const adminAuth = (req, res, next) => {
+  // Check admin privileges
+  next();
+};
+
+url.addPath("/admin/users", (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}, {
+  handlers: [adminAuth] // Only runs for this route
+});
+
+url.addPath("/public", (req, res) => {
+  res.sendText("Public page", 200);
+}); // Only global middleware runs
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Always call next()" icon="forward">
+    Unless you're terminating the request, always call `next()` to continue the pipeline.
+  </Card>
+  
+  <Card title="Keep middlewares focused" icon="bullseye">
+    Each middleware should do one thing well. Create separate middlewares for different concerns.
+  </Card>
+  
+  <Card title="Order matters" icon="list-ol">
+    Register middlewares in the order you want them to execute. Authentication should come before authorization.
+  </Card>
+  
+  <Card title="Handle errors gracefully" icon="shield">
+    Always handle errors in async middlewares to prevent unhandled promise rejections.
+  </Card>
+</CardGroup>
+
+## Common Use Cases
+
+- **Logging**: Track all requests and responses
+- **Authentication**: Verify user identity
+- **Authorization**: Check user permissions
+- **Body Parsing**: Parse JSON or form data
+- **CORS**: Handle cross-origin requests
+- **Rate Limiting**: Prevent abuse
+- **Request Validation**: Validate input data
+- **Response Compression**: Compress responses
+- **Caching**: Cache responses
+- **Error Handling**: Centralized error handling
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Request & Response" icon="arrows-left-right" href="./request-response">
+    Learn about the request and response objects available in middlewares
+  </Card>
+  <Card title="Routing" icon="route" href="./routing">
+    Understand how routes work with middlewares
+  </Card>
+</CardGroup>

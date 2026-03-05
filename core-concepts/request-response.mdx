@@ -1,0 +1,474 @@
+---
+title: "Request & Response"
+description: "Work with Asimilation's enhanced request and response objects"
+---
+
+## Overview
+
+Asimilation extends Node.js's native `IncomingMessage` and `ServerResponse` with additional features to make handling HTTP requests and responses more convenient. These enhanced objects are available in all route handlers and middlewares.
+
+## Request Object
+
+The request object extends Node.js's `IncomingMessage` with additional properties for working with dynamic route parameters.
+
+### Type Definition
+
+```typescript
+class ArgumentedIncomingMessageAbc extends IncomingMessage {
+  params: Record<string, string>;
+}
+```
+
+Defined in `abstract/abstract_req.ts:7-11` and interface in `interfaces/custom-request.ts:3-5`.
+
+### Standard Properties
+
+All standard Node.js `IncomingMessage` properties are available:
+
+```typescript
+url.addPath("/example", (req, res) => {
+  console.log(req.method);     // "GET", "POST", etc.
+  console.log(req.url);        // "/example?foo=bar"
+  console.log(req.headers);    // Headers object
+  console.log(req.httpVersion); // "1.1"
+});
+```
+
+### Route Parameters
+
+The `params` property contains captured URL parameters from dynamic routes:
+
+```typescript
+url.addPath("/users/<int:id>", (req, res) => {
+  const userId = req.params.id;
+  res.sendJson({ userId }, 200);
+});
+
+// Request to /users/123
+// req.params = { id: "123" }
+```
+
+<Note>
+Parameters are always strings, even when using typed routes like `<int:id>`. You'll need to parse them if you need numeric values.
+</Note>
+
+### Multiple Parameters
+
+```typescript
+url.addPath("/api/<string:resource>/<int:id>", (req, res) => {
+  const { resource, id } = req.params;
+  // Request to /api/users/42
+  // resource = "users", id = "42"
+  
+  res.sendJson({ resource, id }, 200);
+});
+```
+
+### Request Headers
+
+Access headers through the standard `headers` property:
+
+```typescript
+url.addPath("/api/data", (req, res) => {
+  const contentType = req.headers["content-type"];
+  const auth = req.headers.authorization;
+  const userAgent = req.headers["user-agent"];
+  
+  res.sendJson({ contentType, auth }, 200);
+});
+```
+
+### Query Parameters
+
+Query parameters are parsed automatically and available via the URL:
+
+```typescript
+url.addPath("/search", (req, res) => {
+  // Request to /search?q=test&page=2
+  const url = new URL(req.url!, `http://${req.headers.host}`);
+  const query = url.searchParams.get("q");      // "test"
+  const page = url.searchParams.get("page");    // "2"
+  
+  res.sendJson({ query, page }, 200);
+});
+```
+
+<Tip>
+The URL is split at the `?` character during routing (see `router-manager.ts:113-114`) to separate the path from query parameters.
+</Tip>
+
+### Request Body
+
+For POST/PUT requests, you'll need to read the body from the stream:
+
+```typescript
+url.addPath("/api/users", async (req, res) => {
+  let body = "";
+  
+  req.on("data", (chunk) => {
+    body += chunk.toString();
+  });
+  
+  req.on("end", () => {
+    try {
+      const data = JSON.parse(body);
+      res.sendJson({ received: data }, 201);
+    } catch (error) {
+      res.sendJson({ error: "Invalid JSON" }, 400);
+    }
+  });
+}, { methods: ["POST"] });
+```
+
+<Note>
+Consider creating a middleware to parse request bodies automatically. See the [Middlewares](/core-concepts/middlewares) guide for an example.
+</Note>
+
+## Response Object
+
+The response object extends Node.js's `ServerResponse` with convenient helper methods for common response types.
+
+### Type Definition
+
+```typescript
+class ArgumentedServerResponseAbc extends ServerResponse {
+  sendJson(json: Object, code: number): void;
+  sendText(text: string, code: number): void;
+  redirect(url: string, code?: number): void;
+}
+```
+
+Defined in `abstract/abstract_res.ts:5-21` and interface in `interfaces/custom-server-response.ts:3-11`.
+
+### sendJson()
+
+Send a JSON response with proper headers:
+
+```typescript
+url.addPath("/api/users", (req, res) => {
+  const users = [
+    { id: 1, name: "John" },
+    { id: 2, name: "Jane" }
+  ];
+  
+  res.sendJson({ users }, 200);
+});
+```
+
+**Implementation** (see `abstract/abstract_res.ts:7-9` and `helpers/http-responses.ts:14-22`):
+- Sets `Content-Type` to `application/json`
+- Stringifies the object with pretty printing
+- Sets the status code
+- Ends the response
+
+#### Common Status Codes
+
+```typescript
+// Success responses
+res.sendJson({ data }, 200);        // OK
+res.sendJson({ created: true }, 201); // Created
+res.sendJson({}, 204);              // No Content
+
+// Client errors
+res.sendJson({ error: "Bad Request" }, 400);
+res.sendJson({ error: "Unauthorized" }, 401);
+res.sendJson({ error: "Forbidden" }, 403);
+res.sendJson({ error: "Not Found" }, 404);
+
+// Server errors
+res.sendJson({ error: "Internal Error" }, 500);
+```
+
+### sendText()
+
+Send a plain text response:
+
+```typescript
+url.addPath("/health", (req, res) => {
+  res.sendText("OK", 200);
+});
+
+url.addPath("/about", (req, res) => {
+  res.sendText("About our application", 200);
+});
+```
+
+**Implementation** (see `abstract/abstract_res.ts:12-14` and `helpers/http-responses.ts:25-32`):
+- Sets `Content-Type` to `text/plain`
+- Sets the status code
+- Ends the response with the text
+
+### redirect()
+
+Redirect to another URL:
+
+```typescript
+url.addPath("/old-page", (req, res) => {
+  res.redirect("/new-page", 302); // Temporary redirect
+});
+
+url.addPath("/moved", (req, res) => {
+  res.redirect("/permanent-location", 301); // Permanent redirect
+});
+
+url.addPath("/login", (req, res) => {
+  res.redirect("/dashboard"); // Defaults to 302
+});
+```
+
+**Implementation** (see `abstract/abstract_res.ts:17-19` and `helpers/http-responses.ts:35-43`):
+- Sets the `Location` header
+- Sets the status code (default 302)
+- Ends the response
+
+#### Redirect Status Codes
+
+- `301` - Moved Permanently
+- `302` - Found (Temporary Redirect)
+- `303` - See Other
+- `307` - Temporary Redirect (Strict)
+- `308` - Permanent Redirect (Strict)
+
+### Standard Methods
+
+All standard Node.js `ServerResponse` methods are also available:
+
+```typescript
+url.addPath("/custom", (req, res) => {
+  // Set headers
+  res.setHeader("Content-Type", "application/xml");
+  res.setHeader("X-Custom-Header", "value");
+  
+  // Write status code
+  res.statusCode = 200;
+  
+  // Write response body
+  res.write("<xml>");
+  res.write("<data>content</data>");
+  res.write("</xml>");
+  
+  // End response
+  res.end();
+});
+```
+
+### Custom Response Formats
+
+For custom response formats, use the standard Node.js API:
+
+#### XML Response
+
+```typescript
+url.addPath("/api/data.xml", (req, res) => {
+  const xml = `<?xml version="1.0"?>
+<response>
+  <status>success</status>
+</response>`;
+  
+  res.writeHead(200, { "Content-Type": "application/xml" });
+  res.end(xml);
+});
+```
+
+#### HTML Response
+
+```typescript
+url.addPath("/page", (req, res) => {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><title>Page</title></head>
+<body><h1>Hello World</h1></body>
+</html>`;
+  
+  res.writeHead(200, { "Content-Type": "text/html" });
+  res.end(html);
+});
+```
+
+#### Binary Response
+
+```typescript
+import { readFile } from "fs/promises";
+
+url.addPath("/download", async (req, res) => {
+  const file = await readFile("./file.pdf");
+  
+  res.writeHead(200, {
+    "Content-Type": "application/pdf",
+    "Content-Disposition": "attachment; filename=file.pdf"
+  });
+  res.end(file);
+});
+```
+
+## Complete Example
+
+Here's a complete example using request and response features:
+
+```typescript
+import { url } from "asimilation";
+
+// GET user by ID
+url.addPath("/api/users/<int:id>", (req, res) => {
+  const userId = req.params.id;
+  const accept = req.headers.accept;
+  
+  const user = {
+    id: parseInt(userId),
+    name: "John Doe",
+    email: "john@example.com"
+  };
+  
+  // Content negotiation
+  if (accept?.includes("application/json")) {
+    res.sendJson(user, 200);
+  } else {
+    res.sendText(JSON.stringify(user), 200);
+  }
+}, { methods: ["GET"] });
+
+// Create user
+url.addPath("/api/users", (req, res) => {
+  let body = "";
+  
+  req.on("data", chunk => {
+    body += chunk.toString();
+  });
+  
+  req.on("end", () => {
+    try {
+      const userData = JSON.parse(body);
+      
+      // Validate
+      if (!userData.name || !userData.email) {
+        res.sendJson({ error: "Missing required fields" }, 400);
+        return;
+      }
+      
+      // Create user (pseudo-code)
+      const newUser = {
+        id: 123,
+        ...userData
+      };
+      
+      res.sendJson(newUser, 201);
+    } catch (error) {
+      res.sendJson({ error: "Invalid JSON" }, 400);
+    }
+  });
+}, { methods: ["POST"] });
+
+// Update user
+url.addPath("/api/users/<int:id>", (req, res) => {
+  const userId = req.params.id;
+  let body = "";
+  
+  req.on("data", chunk => {
+    body += chunk.toString();
+  });
+  
+  req.on("end", () => {
+    try {
+      const updates = JSON.parse(body);
+      
+      // Update user (pseudo-code)
+      const updatedUser = {
+        id: parseInt(userId),
+        ...updates
+      };
+      
+      res.sendJson(updatedUser, 200);
+    } catch (error) {
+      res.sendJson({ error: "Invalid JSON" }, 400);
+    }
+  });
+}, { methods: ["PUT"] });
+
+// Delete user
+url.addPath("/api/users/<int:id>", (req, res) => {
+  const userId = req.params.id;
+  
+  // Delete user (pseudo-code)
+  // deleteUser(userId);
+  
+  res.sendJson({ deleted: true, id: userId }, 200);
+}, { methods: ["DELETE"] });
+```
+
+## How It Works Internally
+
+When a request is received (see `router-manager.ts:103-146`):
+
+<Steps>
+  <Step title="Prototype Enhancement">
+    The native request and response objects have their prototypes set to the enhanced classes (`router-manager.ts:110-111`).
+  </Step>
+  
+  <Step title="URL Parsing">
+    The URL is split to separate the path from query parameters (`router-manager.ts:113-115`).
+  </Step>
+  
+  <Step title="Route Matching">
+    The path is matched against static and dynamic routes to find the handler.
+  </Step>
+  
+  <Step title="Parameter Extraction">
+    For dynamic routes, parameters are extracted and set on `req.params` (`router-manager.ts:137`).
+  </Step>
+  
+  <Step title="Handler Execution">
+    The route handler receives the enhanced request and response objects (`router-manager.ts:139`).
+  </Step>
+</Steps>
+
+## Type Safety
+
+For better type safety in TypeScript, you can create custom types:
+
+```typescript
+import { ArgumentedIncomingMessageAbc, ArgumentedServerResponseAbc } from "asimilation";
+
+interface RequestWithUser extends ArgumentedIncomingMessageAbc {
+  user?: {
+    id: number;
+    name: string;
+  };
+}
+
+url.addPath("/api/profile", (req: RequestWithUser, res) => {
+  const user = req.user; // Type-safe access
+  res.sendJson(user, 200);
+});
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Always set status codes" icon="hashtag">
+    Explicitly set appropriate HTTP status codes for all responses.
+  </Card>
+  
+  <Card title="Use helper methods" icon="wand-magic-sparkles">
+    Prefer `sendJson()` and `sendText()` over manual response construction.
+  </Card>
+  
+  <Card title="Validate input" icon="shield-check">
+    Always validate request parameters and body data before processing.
+  </Card>
+  
+  <Card title="Handle errors" icon="triangle-exclamation">
+    Catch errors and return appropriate error responses to clients.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Routing" icon="route" href="./routing">
+    Learn how to define routes and capture parameters
+  </Card>
+  <Card title="Middlewares" icon="filter" href="./middlewares">
+    Discover how to process requests with middlewares
+  </Card>
+</CardGroup>

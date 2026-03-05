@@ -1,0 +1,548 @@
+---
+title: "Error Handling"
+description: "Handle errors, exceptions, and HTTP error responses in Asimilation"
+icon: "triangle-exclamation"
+---
+
+Robust error handling is essential for building reliable APIs. Asimilation provides built-in error handling mechanisms and allows you to customize error responses.
+
+## Built-in Error Handling
+
+Asimilation automatically handles common HTTP errors:
+
+### 404 Not Found
+
+When no route matches the requested URL, Asimilation automatically returns a 404 response:
+
+```http
+GET /non-existent-route HTTP/1.1
+```
+
+**Response:**
+```json
+{
+  "error": "Route don't exist"
+}
+```
+
+<Note>
+The 404 handler is built into the route manager (see `src/core/router-manager.ts:82-90`).
+</Note>
+
+### Method Not Allowed
+
+When a route exists but doesn't support the requested HTTP method:
+
+```typescript
+import { url } from 'asimilation';
+
+// Only accepts GET
+url.addPath('/users', handler, { methods: ['GET'] });
+```
+
+**Request:**
+```http
+POST /users HTTP/1.1
+```
+
+**Response:**
+```json
+{
+  "error": "Route don't exist"
+}
+```
+
+## Content Negotiation
+
+Asimilation respects the `Accept` header for error responses:
+
+<CodeGroup>
+
+```http JSON Response (default)
+GET /not-found HTTP/1.1
+Accept: application/json
+
+{
+  "error": "Route don't exist"
+}
+```
+
+```http Plain Text Response
+GET /not-found HTTP/1.1
+Accept: text/plain
+
+error: Route don't exist
+```
+
+</CodeGroup>
+
+<Note>
+Content negotiation is handled by the error response handler (see `src/helpers/error-response.ts:5-42`).
+</Note>
+
+## Quality Values (q-factor)
+
+The error handler respects quality values in the Accept header:
+
+```http
+GET /not-found HTTP/1.1
+Accept: text/plain;q=0.5, application/json;q=1.0
+```
+
+This will return JSON because it has a higher quality value (1.0 > 0.5).
+
+## Error Response Helpers
+
+Use response helpers to send error responses from your handlers:
+
+<CodeGroup>
+
+```typescript JSON Error
+url.addPath('/users/<int:id>', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  
+  if (id < 1) {
+    res.sendJson({ error: 'Invalid user ID' }, 400);
+    return;
+  }
+  
+  res.sendJson({ userId: id }, 200);
+});
+```
+
+```typescript Text Error
+url.addPath('/status', (req, res) => {
+  const status = checkSystemStatus();
+  
+  if (!status.healthy) {
+    res.sendText('System unhealthy', 503);
+    return;
+  }
+  
+  res.sendText('OK', 200);
+});
+```
+
+</CodeGroup>
+
+## Common HTTP Status Codes
+
+Use appropriate status codes for different error scenarios:
+
+| Code | Meaning | When to Use |
+|------|---------|-------------|
+| **400** | Bad Request | Invalid input, malformed request |
+| **401** | Unauthorized | Authentication required |
+| **403** | Forbidden | Authenticated but not authorized |
+| **404** | Not Found | Resource doesn't exist |
+| **409** | Conflict | Duplicate resource, state conflict |
+| **422** | Unprocessable Entity | Validation failed |
+| **429** | Too Many Requests | Rate limit exceeded |
+| **500** | Internal Server Error | Unexpected server error |
+| **503** | Service Unavailable | Server overloaded or down |
+
+## Validation Errors
+
+Handle input validation errors with appropriate messages:
+
+```typescript
+import { url } from 'asimilation';
+
+url.addPath('/users', (req, res) => {
+  const body = (req as any).body;
+  
+  // Validate required fields
+  if (!body.email) {
+    res.sendJson({
+      error: 'Validation failed',
+      details: [{ field: 'email', message: 'Email is required' }]
+    }, 400);
+    return;
+  }
+  
+  // Validate email format
+  if (!isValidEmail(body.email)) {
+    res.sendJson({
+      error: 'Validation failed',
+      details: [{ field: 'email', message: 'Invalid email format' }]
+    }, 400);
+    return;
+  }
+  
+  res.sendJson({ message: 'User created' }, 201);
+}, {
+  methods: ['POST']
+});
+```
+
+## Error Handling Middleware
+
+Create middleware to catch and handle errors globally:
+
+```typescript
+import { MiddlewarePipeline } from 'asimilation';
+
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  try {
+    next();
+  } catch (error) {
+    console.error('Unhandled error:', error);
+    
+    // Send error response
+    if (!res.writableEnded) {
+      res.sendJson({
+        error: 'Internal Server Error',
+        message: error.message
+      }, 500);
+    }
+  }
+});
+```
+
+<Note>
+Asimilation includes a default error-handling middleware (see `src/default/middleware/error-handling.ts:5-18`).
+</Note>
+
+## Handling Async Errors
+
+Wrap async route handlers with try-catch:
+
+```typescript
+import { url } from 'asimilation';
+
+url.addPath('/users/<int:id>', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const user = await fetchUserFromDatabase(id);
+    
+    if (!user) {
+      res.sendJson({ error: 'User not found' }, 404);
+      return;
+    }
+    
+    res.sendJson({ user }, 200);
+  } catch (error) {
+    console.error('Database error:', error);
+    res.sendJson({ error: 'Internal server error' }, 500);
+  }
+});
+```
+
+## Custom Error Types
+
+Define custom error classes for different error scenarios:
+
+```typescript
+class ValidationError extends Error {
+  statusCode = 400;
+  
+  constructor(message: string, public details?: any) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
+class NotFoundError extends Error {
+  statusCode = 404;
+  
+  constructor(message: string) {
+    super(message);
+    this.name = 'NotFoundError';
+  }
+}
+
+class UnauthorizedError extends Error {
+  statusCode = 401;
+  
+  constructor(message: string) {
+    super(message);
+    this.name = 'UnauthorizedError';
+  }
+}
+```
+
+## Using Custom Errors
+
+Throw custom errors and handle them in middleware:
+
+```typescript
+import { url, MiddlewarePipeline } from 'asimilation';
+
+// Error handling middleware
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  try {
+    next();
+  } catch (error: any) {
+    console.error(error);
+    
+    if (!res.writableEnded) {
+      const statusCode = error.statusCode || 500;
+      const message = error.message || 'Internal Server Error';
+      
+      res.sendJson({
+        error: error.name || 'Error',
+        message,
+        ...(error.details && { details: error.details })
+      }, statusCode);
+    }
+  }
+});
+
+// Route that throws custom errors
+url.addPath('/users/<int:id>', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  
+  if (id < 1) {
+    throw new ValidationError('Invalid user ID', {
+      field: 'id',
+      value: id
+    });
+  }
+  
+  const user = await fetchUser(id);
+  if (!user) {
+    throw new NotFoundError(`User ${id} not found`);
+  }
+  
+  res.sendJson({ user }, 200);
+});
+```
+
+## Built-in Exception Types
+
+Asimilation includes several exception types:
+
+<CodeGroup>
+
+```typescript Route Not Found
+import { RouteNotFoundError } from 'asimilation/exceptions';
+
+// Thrown when a handler is not found
+throw new RouteNotFoundError();
+// Message: "handler not found"
+```
+
+```typescript Method Not Found
+import { MethodNotFound } from 'asimilation/exceptions';
+
+// Thrown when a handler has no method
+throw new MethodNotFound();
+// Message: "Handler whiout a method"
+```
+
+```typescript Not Supported Method
+import { NotSuportedMethodError } from 'asimilation/exceptions';
+
+// Thrown when the HTTP method is not supported
+throw new NotSuportedMethodError();
+// Message: "The method is not suported"
+```
+
+```typescript Type Not Defined
+import { TypeIsNotDefined } from 'asimilation/exceptions';
+
+// Thrown when a parameter type is not defined
+throw new TypeIsNotDefined('uuid');
+// Message: "Type uuid is not defined"
+```
+
+</CodeGroup>
+
+<Note>
+Exception types are defined in `src/exceptions/` directory.
+</Note>
+
+## Handling 404s for Specific Paths
+
+Create a catch-all route to handle 404s with custom logic:
+
+```typescript
+import { url } from 'asimilation';
+
+// All your normal routes
+url.addPath('/users', usersHandler);
+url.addPath('/posts', postsHandler);
+
+// Custom 404 handler (this won't actually catch 404s in Asimilation)
+// The framework handles 404s automatically
+```
+
+<Warning>
+Asimilation's built-in 404 handling cannot be easily overridden. The framework automatically returns a 404 response when no route matches.
+</Warning>
+
+## Checking Response State
+
+Always check if the response has been sent before writing:
+
+```typescript
+url.addPath('/data', (req, res) => {
+  // Some middleware might have already sent a response
+  if (res.writableEnded) {
+    return; // Response already sent, don't write again
+  }
+  
+  res.sendJson({ data: 'value' }, 200);
+});
+```
+
+<Note>
+The router checks `res.writableEnded` before calling handlers (see `src/core/router-manager.ts:138`).
+</Note>
+
+## Error Response Format
+
+Establish a consistent error response format:
+
+```typescript
+interface ErrorResponse {
+  error: string;           // Error type or category
+  message: string;         // Human-readable message
+  details?: any;           // Additional error details
+  timestamp?: string;      // When the error occurred
+  path?: string;          // Request path
+  requestId?: string;     // Request ID for tracking
+}
+
+// Example usage
+function sendError(
+  res: ArgumentedServerResponseAbc,
+  error: string,
+  message: string,
+  statusCode: number,
+  details?: any
+) {
+  const response: ErrorResponse = {
+    error,
+    message,
+    timestamp: new Date().toISOString(),
+    ...(details && { details })
+  };
+  
+  res.sendJson(response, statusCode);
+}
+
+// In your route
+url.addPath('/users', (req, res) => {
+  const body = (req as any).body;
+  
+  if (!body.email) {
+    sendError(res, 'ValidationError', 'Email is required', 400, {
+      field: 'email'
+    });
+    return;
+  }
+  
+  res.sendJson({ message: 'User created' }, 201);
+});
+```
+
+## Logging Errors
+
+Log errors for debugging and monitoring:
+
+```typescript
+import { MiddlewarePipeline } from 'asimilation';
+
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  try {
+    next();
+  } catch (error: any) {
+    // Log error with context
+    console.error({
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      url: req.url,
+      error: error.message,
+      stack: error.stack,
+      requestId: (req as any).requestId
+    });
+    
+    // Send error response
+    if (!res.writableEnded) {
+      res.sendJson({
+        error: 'Internal Server Error',
+        requestId: (req as any).requestId
+      }, 500);
+    }
+  }
+});
+```
+
+## Best Practices
+
+<Steps>
+
+<Step title="Use appropriate status codes">
+  Choose the HTTP status code that best matches the error:
+  ```typescript
+  // Bad: Using 500 for validation errors
+  res.sendJson({ error: 'Invalid email' }, 500);
+  
+  // Good: Using 400 for validation errors
+  res.sendJson({ error: 'Invalid email' }, 400);
+  ```
+</Step>
+
+<Step title="Provide helpful error messages">
+  Give users enough information to fix the problem:
+  ```typescript
+  // Less helpful
+  res.sendJson({ error: 'Invalid input' }, 400);
+  
+  // More helpful
+  res.sendJson({
+    error: 'Validation failed',
+    details: [{ field: 'email', message: 'Email format is invalid' }]
+  }, 400);
+  ```
+</Step>
+
+<Step title="Don't leak sensitive information">
+  Never expose internal errors or stack traces in production:
+  ```typescript
+  // Bad: Exposing internal errors
+  res.sendJson({ error: error.stack }, 500);
+  
+  // Good: Generic error message
+  res.sendJson({ error: 'Internal server error' }, 500);
+  console.error(error); // Log internally
+  ```
+</Step>
+
+<Step title="Handle async errors">
+  Always wrap async code in try-catch:
+  ```typescript
+  url.addPath('/data', async (req, res) => {
+    try {
+      const data = await fetchData();
+      res.sendJson({ data }, 200);
+    } catch (error) {
+      res.sendJson({ error: 'Failed to fetch data' }, 500);
+    }
+  });
+  ```
+</Step>
+
+<Step title="Check response state">
+  Don't write to responses that have already ended:
+  ```typescript
+  if (res.writableEnded) {
+    return;
+  }
+  res.sendJson({ data: 'value' }, 200);
+  ```
+</Step>
+
+</Steps>
+
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card title="Middleware Pipeline" icon="filter" href="/guides/middleware-pipeline">
+    Learn how to use middleware for error handling
+  </Card>
+  <Card title="API Reference" icon="book" href="/core-concepts/request-response">
+    Explore the request and response API
+  </Card>
+</CardGroup>

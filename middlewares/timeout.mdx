@@ -1,0 +1,229 @@
+---
+title: Timeout Middleware
+description: Prevent long-running requests from blocking your server
+---
+
+The timeout middleware automatically terminates requests that exceed a specified duration, preventing resource exhaustion and improving server responsiveness.
+
+## What It Does
+
+The timeout middleware:
+- Sets a timer for each incoming request
+- Automatically responds with a 504 Gateway Timeout if the request exceeds the timeout duration
+- Cleans up the timer when the request completes successfully
+- Prevents memory leaks by using proper cleanup in a `finally` block
+
+## Default Configuration
+
+By default, the timeout is set to **1 millisecond** (this is likely a placeholder in the source code and should be configured based on your needs).
+
+```typescript
+const timer = setTimeout(() => {
+    if (!finished || !res.writableEnded) {
+        res.sendJson({ message: 'Request timed out' }, 504);
+        finished = true;
+    }
+}, 1); // 1ms timeout
+```
+
+<Warning>
+The default 1ms timeout is extremely aggressive and will cause most requests to timeout. You should configure this value based on your application's requirements.
+</Warning>
+
+## How It Works
+
+Here's the complete implementation of the timeout middleware:
+
+```typescript
+import { MiddlewarePipeline } from "../../core/middleware-manager.js";
+import { ArgumentedIncomingMessageAbc } from "../../abstract/abstract_req.js";
+import { ArgumentedServerResponseAbc } from "../../abstract/abstract_res.js";
+
+MiddlewarePipeline.addMiddleware(
+    async (req, res, next) => {
+        let finished: boolean = false;
+
+        const timer = setTimeout(() => {
+            if (!finished || !res.writableEnded) {
+                res.sendJson({ message: 'Request timed out' }, 504);
+                finished = true;
+            }
+        }, 1); // Timeout duration in milliseconds
+        
+        try {
+            next();
+        } finally {
+            clearTimeout(timer);
+            finished = true;
+        }
+    }
+);
+```
+
+## Key Features
+
+<Steps>
+
+### Automatic Cleanup
+
+The middleware uses a `finally` block to ensure the timer is always cleared, preventing memory leaks:
+
+```typescript
+finally {
+    clearTimeout(timer);
+    finished = true;
+}
+```
+
+### Safe Response Handling
+
+Before sending the timeout response, the middleware checks if the response has already been sent:
+
+```typescript
+if (!finished || !res.writableEnded) {
+    res.sendJson({ message: 'Request timed out' }, 504);
+}
+```
+
+### 504 Gateway Timeout
+
+The middleware returns a proper HTTP 504 status code, indicating that the server did not receive a timely response from an upstream server or failed to complete processing in time.
+
+</Steps>
+
+## Configuration
+
+To configure the timeout duration, you'll need to modify the middleware or create a custom version. Here's an example with a 30-second timeout:
+
+```typescript
+import { MiddlewarePipeline } from "asimilation";
+
+MiddlewarePipeline.addMiddleware(
+    async (req, res, next) => {
+        let finished: boolean = false;
+
+        const timer = setTimeout(() => {
+            if (!finished || !res.writableEnded) {
+                res.sendJson({ 
+                    message: 'Request timed out',
+                    timeout: '30s'
+                }, 504);
+                finished = true;
+            }
+        }, 30000); // 30 seconds
+        
+        try {
+            next();
+        } finally {
+            clearTimeout(timer);
+            finished = true;
+        }
+    }
+);
+```
+
+## Timeout Response
+
+When a request times out, the client receives the following JSON response:
+
+```json
+{
+    "message": "Request timed out"
+}
+```
+
+HTTP Status: `504 Gateway Timeout`
+
+## Enabling the Timeout Middleware
+
+The timeout middleware is part of the default middleware stack. Import it to enable:
+
+```typescript
+import "asimilation/default/middleware/timeout";
+import { asi, url } from "asimilation";
+
+// Define routes
+url.get("/long-task", async (req, res) => {
+    // This will timeout if it takes longer than configured
+    await performLongRunningTask();
+    res.sendJson({ success: true });
+});
+
+asi.setup(3000, "");
+asi.run();
+```
+
+## Use Cases
+
+<Card title="API Gateway" icon="server">
+Prevent upstream services from hanging your API gateway indefinitely.
+</Card>
+
+<Card title="Long-Running Operations" icon="clock">
+Force clients to use async patterns (webhooks, polling) for operations that may take longer than acceptable.
+</Card>
+
+<Card title="Resource Protection" icon="shield">
+Prevent slow or malicious clients from consuming server resources.
+</Card>
+
+<Card title="SLA Compliance" icon="chart-line">
+Enforce response time guarantees by timing out requests that exceed your SLA.
+</Card>
+
+## Best Practices
+
+<Note>
+**Recommended Timeout Values:**
+
+- **API Endpoints**: 10-30 seconds
+- **File Uploads**: 60-300 seconds
+- **Webhook Handlers**: 5-15 seconds
+- **Database Queries**: 5-10 seconds
+</Note>
+
+<Tip>
+For operations that legitimately take longer than your timeout, consider implementing:
+
+- Asynchronous job queues
+- Webhook callbacks
+- Polling endpoints to check operation status
+- Server-Sent Events (SSE) or WebSockets for real-time updates
+</Tip>
+
+## Custom Timeout Per Route
+
+If you need different timeouts for different routes, you can create route-specific middleware:
+
+```typescript
+function timeoutMiddleware(ms: number) {
+    return async (req, res, next) => {
+        let finished = false;
+        
+        const timer = setTimeout(() => {
+            if (!finished || !res.writableEnded) {
+                res.sendJson({ 
+                    message: `Request timed out after ${ms}ms` 
+                }, 504);
+                finished = true;
+            }
+        }, ms);
+        
+        try {
+            next();
+        } finally {
+            clearTimeout(timer);
+            finished = true;
+        }
+    };
+}
+
+// Apply different timeouts to different routes
+url.get("/quick", timeoutMiddleware(5000), (req, res) => {
+    // 5 second timeout
+});
+
+url.post("/upload", timeoutMiddleware(60000), (req, res) => {
+    // 60 second timeout for file uploads
+});
+```

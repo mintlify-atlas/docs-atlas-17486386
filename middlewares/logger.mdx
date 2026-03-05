@@ -1,0 +1,136 @@
+---
+title: Logger Middleware
+description: Automatic request logging with colored console output
+---
+
+The logger middleware automatically logs all incoming HTTP requests with detailed information including method, URL, status code, and response time.
+
+## What It Does
+
+The logger middleware:
+- Captures request start time
+- Logs request details when the response completes
+- Displays color-coded status codes in the console
+- Measures and reports response time in milliseconds
+- Uses the `chalk` library for colored output
+
+## Log Format
+
+Each log entry follows this format:
+
+```
+➤ [YYYY-MM-DD HH:MM:SS] { METHOD /path } -> STATUS_CODE (XXms)
+```
+
+### Color Coding
+
+Status codes are color-coded for easy identification:
+
+- **Green** (2xx): Successful responses
+- **Blue** (3xx): Redirects
+- **Magenta** (4xx): Client errors
+- **Red** (5xx): Server errors
+- **Yellow** (1xx): Informational
+- **Gray**: Unknown status codes
+
+## How It Works
+
+The logger middleware is automatically registered with the `MiddlewarePipeline` when imported. Here's the implementation:
+
+```typescript
+import { MiddlewarePipeline } from "../../core/middleware-manager.js";
+import { ServerResponse } from "http";
+import { ArgumentedIncomingMessageInterface } from "../../interfaces/custom-request.js";
+import { createLog } from "../../utils/logger.js";
+import { timeTakedToResolve } from "../../helpers/date.js";
+
+MiddlewarePipeline.addMiddleware(
+    (req, res, next) => {
+        const start: Date = new Date();
+        
+        req.on("end", () => {
+            let statusCode: number | undefined = res.statusCode;
+            let method: string | undefined = req.method;
+            let url: string | undefined = req.url;
+            const finalDate: Date = new Date();
+            
+            const timeTaked: number = timeTakedToResolve(start, finalDate);
+
+            if (statusCode && method && url) {
+                createLog(statusCode, method, url, timeTaked);
+                return;
+            }
+
+            throw new Error("Error in the logger");
+        });
+        
+        next();
+    }
+);
+```
+
+## Key Features
+
+<Steps>
+
+### Event-Driven Logging
+
+The middleware attaches to the request's `end` event, ensuring logs are only written after the response is fully sent.
+
+### Performance Tracking
+
+Response time is calculated by comparing the start date with the final date when the request ends:
+
+```typescript
+const timeTaked: number = timeTakedToResolve(start, finalDate);
+```
+
+### Non-Blocking
+
+The middleware calls `next()` immediately, allowing the request to proceed without waiting for the response to complete.
+
+</Steps>
+
+## Enabling the Logger
+
+The logger middleware is part of the default middleware stack. To enable it, simply import it in your application:
+
+```typescript
+import "asimilation/default/middleware/logger";
+import { asi, url } from "asimilation";
+
+// Define your routes
+url.get("/", (req, res) => {
+    res.sendJson({ message: "Hello World" });
+});
+
+// Start the server
+asi.setup(3000, "");
+asi.run();
+```
+
+## Example Output
+
+When running your application, you'll see colored logs in the console:
+
+```bash
+➤ [2026-03-05 14:23:45] { GET /api/users } -> 200 (45ms)
+➤ [2026-03-05 14:23:46] { POST /api/users } -> 201 (123ms)
+➤ [2026-03-05 14:23:47] { GET /api/users/999 } -> 404 (12ms)
+➤ [2026-03-05 14:23:48] { PUT /api/users/1 } -> 500 (67ms)
+```
+
+<Note>
+The logger middleware runs for all requests and cannot be disabled per-route. If you need conditional logging, consider creating a custom middleware.
+</Note>
+
+## Use Cases
+
+- **Development**: Monitor API requests in real-time during development
+- **Debugging**: Identify slow endpoints by checking response times
+- **Monitoring**: Track request patterns and error rates
+- **Performance**: Analyze response times to optimize slow routes
+
+<Tip>
+For production environments, consider integrating with a structured logging library that supports log levels, file output, and log aggregation services.
+</Tip>

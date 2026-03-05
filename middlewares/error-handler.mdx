@@ -1,0 +1,325 @@
+---
+title: Error Handler Middleware
+description: Centralized error handling with automatic status codes and JSON responses
+---
+
+The error handler middleware provides centralized error handling for your application, catching exceptions and returning properly formatted error responses to clients.
+
+## What It Does
+
+The error handler middleware:
+- Catches errors thrown in route handlers and other middleware
+- Logs errors to the console for debugging
+- Returns a standardized error response to the client
+- Sends a 500 Internal Server Error status code by default
+- Prevents server crashes from unhandled exceptions
+
+## How It Works
+
+The error handler wraps the middleware chain in a try-catch block:
+
+```typescript
+import { MiddlewarePipeline } from "../../core/middleware-manager.js";
+import { ArgumentedIncomingMessageAbc } from "../../abstract/abstract_req.js";
+import { ArgumentedServerResponseAbc } from "../../abstract/abstract_res.js";
+
+MiddlewarePipeline.addMiddleware(
+    (req, res, next) => {
+        try {
+            next();
+        } catch (error) {
+            console.log(error);
+            res.sendJson({ message: 'Internal Server error' }, 500);
+        }
+    }
+);
+```
+
+## Error Response Format
+
+When an error is caught, the middleware returns a JSON response:
+
+```json
+{
+    "message": "Internal Server error"
+}
+```
+
+HTTP Status: `500 Internal Server Error`
+
+## Key Features
+
+<Steps>
+
+### Error Logging
+
+All caught errors are logged to the console, helping you debug issues:
+
+```typescript
+console.log(error);
+```
+
+### Standardized Response
+
+The middleware ensures all errors result in a consistent JSON response format, making it easier for clients to handle errors.
+
+### Server Protection
+
+By catching exceptions, the middleware prevents your server from crashing due to unhandled errors.
+
+</Steps>
+
+## Enabling the Error Handler
+
+The error handler is part of the default middleware stack. Import it to enable:
+
+```typescript
+import "asimilation/default/middleware/error-handling";
+import { asi, url } from "asimilation";
+
+// Define routes
+url.get("/", (req, res) => {
+    throw new Error("Something went wrong!");
+    // This error will be caught and handled
+});
+
+asi.setup(3000, "");
+asi.run();
+```
+
+## Content Negotiation
+
+Asimilation includes helper functions for advanced error response handling based on the `Accept` header. The `createErrorResponseHandler` function allows you to return different formats based on client preferences:
+
+```typescript
+import { createErrorResponseHandler } from "asimilation/helpers/error-response";
+
+const errorHandler = createErrorResponseHandler({
+    "application/json": (res, message, statusCode) => {
+        res.sendJson({ error: message }, statusCode);
+    },
+    "text/plain": (res, message, statusCode) => {
+        res.writeHead(statusCode, { "Content-Type": "text/plain" });
+        res.end(message);
+    },
+    "text/html": (res, message, statusCode) => {
+        res.writeHead(statusCode, { "Content-Type": "text/html" });
+        res.end(`<html><body><h1>Error ${statusCode}</h1><p>${message}</p></body></html>`);
+    }
+});
+
+// Use in middleware
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+    try {
+        next();
+    } catch (error) {
+        console.error(error);
+        errorHandler(req, res, 500, "Internal Server Error");
+    }
+});
+```
+
+### How Content Negotiation Works
+
+<Steps>
+
+### Parse Accept Header
+
+The `createErrorResponseHandler` parses the client's `Accept` header to determine preferred response formats.
+
+### Sort by Quality
+
+Formats are sorted by their quality values (q parameter), with higher quality values prioritized:
+
+```
+Accept: application/json;q=0.9, text/html;q=1.0, text/plain;q=0.8
+```
+
+### Match to Available Formats
+
+The handler matches the client's preferences to the formats you've configured.
+
+### Fallback to JSON
+
+If no match is found or no Accept header is present, the handler defaults to JSON.
+
+</Steps>
+
+## Customization
+
+You can create custom error handling middleware with additional features:
+
+### Custom Error Response
+
+```typescript
+import { MiddlewarePipeline } from "asimilation";
+
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+    try {
+        next();
+    } catch (error) {
+        console.error("Error occurred:", error);
+        
+        res.sendJson({
+            error: "Internal Server Error",
+            message: error.message,
+            timestamp: new Date().toISOString(),
+            path: req.url
+        }, 500);
+    }
+});
+```
+
+### Status Code Based on Error Type
+
+```typescript
+class ValidationError extends Error {
+    statusCode = 400;
+}
+
+class NotFoundError extends Error {
+    statusCode = 404;
+}
+
+class UnauthorizedError extends Error {
+    statusCode = 401;
+}
+
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+    try {
+        next();
+    } catch (error) {
+        console.error(error);
+        
+        const statusCode = error.statusCode || 500;
+        const message = error.message || "Internal Server Error";
+        
+        res.sendJson({ error: message }, statusCode);
+    }
+});
+```
+
+### Environment-Based Error Details
+
+```typescript
+const isDevelopment = process.env.NODE_ENV === "development";
+
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+    try {
+        next();
+    } catch (error) {
+        console.error(error);
+        
+        const errorResponse: any = {
+            error: "Internal Server Error"
+        };
+        
+        // Only include stack trace in development
+        if (isDevelopment) {
+            errorResponse.message = error.message;
+            errorResponse.stack = error.stack;
+        }
+        
+        res.sendJson(errorResponse, 500);
+    }
+});
+```
+
+## HTTP Status Codes
+
+When customizing error handling, use appropriate HTTP status codes:
+
+| Status Code | Meaning | Use Case |
+|-------------|---------|----------|
+| 400 | Bad Request | Invalid input or validation errors |
+| 401 | Unauthorized | Missing or invalid authentication |
+| 403 | Forbidden | Authenticated but not authorized |
+| 404 | Not Found | Resource doesn't exist |
+| 409 | Conflict | Resource conflict (e.g., duplicate) |
+| 422 | Unprocessable Entity | Valid syntax but semantic errors |
+| 429 | Too Many Requests | Rate limit exceeded |
+| 500 | Internal Server Error | Unexpected server errors |
+| 502 | Bad Gateway | Upstream service error |
+| 503 | Service Unavailable | Server overloaded or maintenance |
+| 504 | Gateway Timeout | Upstream service timeout |
+
+## Best Practices
+
+<Note>
+**Security Considerations:**
+
+- Never expose stack traces in production
+- Avoid leaking sensitive information in error messages
+- Log detailed errors server-side but send generic messages to clients
+- Use error codes or types instead of exposing internal details
+</Note>
+
+<Tip>
+**Structured Error Logging:**
+
+Consider using a structured logging library like Winston or Pino for better error tracking:
+
+```typescript
+import winston from "winston";
+
+const logger = winston.createLogger({
+    level: "error",
+    format: winston.format.json(),
+    transports: [
+        new winston.transports.File({ filename: "error.log" })
+    ]
+});
+
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+    try {
+        next();
+    } catch (error) {
+        logger.error({
+            message: error.message,
+            stack: error.stack,
+            method: req.method,
+            url: req.url,
+            timestamp: new Date().toISOString()
+        });
+        
+        res.sendJson({ error: "Internal Server Error" }, 500);
+    }
+});
+```
+</Tip>
+
+## Error Monitoring Integration
+
+Integrate with error monitoring services for production environments:
+
+```typescript
+import * as Sentry from "@sentry/node";
+
+Sentry.init({ dsn: process.env.SENTRY_DSN });
+
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+    try {
+        next();
+    } catch (error) {
+        // Send to Sentry
+        Sentry.captureException(error, {
+            extra: {
+                method: req.method,
+                url: req.url,
+                headers: req.headers
+            }
+        });
+        
+        console.error(error);
+        res.sendJson({ error: "Internal Server Error" }, 500);
+    }
+});
+```
+
+## Use Cases
+
+- **Production Safety**: Prevent server crashes from uncaught exceptions
+- **Client Experience**: Provide consistent error responses to API consumers
+- **Debugging**: Centralized error logging for easier troubleshooting
+- **Security**: Hide internal implementation details from clients
+- **Monitoring**: Single point to integrate with error tracking services

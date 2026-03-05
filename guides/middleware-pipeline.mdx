@@ -1,0 +1,540 @@
+---
+title: "Middleware Pipeline"
+description: "Add cross-cutting concerns to your routes with middleware"
+icon: "filter"
+---
+
+Middleware functions execute before your route handlers, allowing you to add authentication, logging, validation, and other cross-cutting concerns to your application.
+
+## What is Middleware?
+
+Middleware is a function that executes in the request/response cycle before your route handler. Middleware can:
+
+- Modify the request or response objects
+- Execute code before the route handler
+- Pass data to subsequent middleware or the route handler
+- Terminate the request early (e.g., for authentication failures)
+
+## Middleware Function Signature
+
+Middleware functions have three parameters:
+
+```typescript
+import { ArgumentedIncomingMessageAbc, ArgumentedServerResponseAbc } from 'asimilation';
+
+function myMiddleware(
+  req: ArgumentedIncomingMessageAbc,
+  res: ArgumentedServerResponseAbc,
+  next: (error?: Error) => void
+) {
+  // Middleware logic here
+  
+  // Call next() to pass control to the next middleware or route handler
+  next();
+}
+```
+
+<Warning>
+Always call `next()` to continue the middleware pipeline. Forgetting to call `next()` will hang the request.
+</Warning>
+
+## Adding Global Middleware
+
+Global middleware runs on every request. Add it using `MiddlewarePipeline`:
+
+```typescript
+import { MiddlewarePipeline } from 'asimilation';
+
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
+```
+
+<Note>
+Global middleware is managed by the `MiddlewareManager` singleton (see `src/core/middleware-manager.ts:8-75`).
+</Note>
+
+## Global Middleware Examples
+
+<CodeGroup>
+
+```typescript Request Logging
+import { MiddlewarePipeline } from 'asimilation';
+
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  const start = Date.now();
+  
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  
+  // Continue to next middleware
+  next();
+  
+  // This runs after the response
+  const duration = Date.now() - start;
+  console.log(`Request completed in ${duration}ms`);
+});
+```
+
+```typescript CORS Headers
+import { MiddlewarePipeline } from 'asimilation';
+
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+  
+  next();
+});
+```
+
+```typescript Request ID
+import { MiddlewarePipeline } from 'asimilation';
+import { randomUUID } from 'crypto';
+
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  // Add request ID to request object
+  (req as any).requestId = randomUUID();
+  
+  // Add request ID to response headers
+  res.setHeader('X-Request-ID', (req as any).requestId);
+  
+  next();
+});
+```
+
+```typescript Content-Type Parser
+import { MiddlewarePipeline } from 'asimilation';
+
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  if (req.method === 'POST' || req.method === 'PUT') {
+    let body = '';
+    
+    req.on('data', (chunk) => {
+      body += chunk.toString();
+    });
+    
+    req.on('end', () => {
+      try {
+        (req as any).body = JSON.parse(body);
+      } catch (error) {
+        (req as any).body = {};
+      }
+      next();
+    });
+  } else {
+    next();
+  }
+});
+```
+
+</CodeGroup>
+
+## Route-Specific Middleware
+
+Apply middleware to specific routes using the `handlers` option:
+
+```typescript
+import { url } from 'asimilation';
+
+function authMiddleware(req, res, next) {
+  const token = req.headers.authorization;
+  
+  if (!token) {
+    res.sendJson({ error: 'Unauthorized' }, 401);
+    return; // Don't call next() - terminate here
+  }
+  
+  // Validate token and attach user to request
+  (req as any).user = { id: 1, name: 'John' };
+  next();
+}
+
+url.addPath('/admin/dashboard', (req, res) => {
+  const user = (req as any).user;
+  res.sendJson({ message: `Welcome ${user.name}` }, 200);
+}, {
+  methods: ['GET'],
+  handlers: [authMiddleware] // Route-specific middleware
+});
+```
+
+<Note>
+Route-specific middleware is defined in the `PathKwargs` type (see `src/core/type.ts:16-19`).
+</Note>
+
+## Multiple Route Middlewares
+
+Chain multiple middlewares for a single route:
+
+```typescript
+import { url } from 'asimilation';
+
+function authenticate(req, res, next) {
+  // Check authentication
+  const token = req.headers.authorization;
+  if (!token) {
+    res.sendJson({ error: 'Unauthorized' }, 401);
+    return;
+  }
+  (req as any).user = { id: 1, role: 'admin' };
+  next();
+}
+
+function authorize(req, res, next) {
+  // Check authorization
+  const user = (req as any).user;
+  if (user.role !== 'admin') {
+    res.sendJson({ error: 'Forbidden' }, 403);
+    return;
+  }
+  next();
+}
+
+function validateInput(req, res, next) {
+  // Validate request body
+  const body = (req as any).body;
+  if (!body || !body.name) {
+    res.sendJson({ error: 'Name is required' }, 400);
+    return;
+  }
+  next();
+}
+
+url.addPath('/admin/users', (req, res) => {
+  res.sendJson({ message: 'User created' }, 201);
+}, {
+  methods: ['POST'],
+  handlers: [authenticate, authorize, validateInput]
+});
+```
+
+## Middleware Execution Order
+
+Middleware executes in a specific order:
+
+<Steps>
+
+<Step title="Global middleware">
+  All global middleware added via `MiddlewarePipeline.addMiddleware()` runs first, in the order they were added.
+</Step>
+
+<Step title="Route-specific middleware">
+  Route-specific middleware from the `handlers` array runs next, in array order.
+</Step>
+
+<Step title="Route handler">
+  Finally, your route handler function executes.
+</Step>
+
+</Steps>
+
+```typescript
+import { MiddlewarePipeline, url } from 'asimilation';
+
+// 1. Global middleware (runs first)
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  console.log('Global middleware 1');
+  next();
+});
+
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  console.log('Global middleware 2');
+  next();
+});
+
+// 2. Route with specific middleware
+url.addPath('/test', (req, res) => {
+  console.log('Route handler');
+  res.sendJson({ message: 'Done' }, 200);
+}, {
+  handlers: [
+    (req, res, next) => {
+      console.log('Route middleware 1');
+      next();
+    },
+    (req, res, next) => {
+      console.log('Route middleware 2');
+      next();
+    }
+  ]
+});
+
+// Output for GET /test:
+// Global middleware 1
+// Global middleware 2
+// Route middleware 1
+// Route middleware 2
+// Route handler
+```
+
+<Note>
+The middleware execution order is managed by the router (see `src/core/router-manager.ts:122-145`).
+</Note>
+
+## Async Middleware
+
+Middleware can be asynchronous:
+
+```typescript
+import { MiddlewarePipeline } from 'asimilation';
+import { MiddlewareFunctionAsync } from 'asimilation/types';
+
+const asyncMiddleware: MiddlewareFunctionAsync = async (req, res, next) => {
+  try {
+    // Async operation (e.g., database query)
+    const user = await fetchUserFromDatabase();
+    (req as any).user = user;
+    next();
+  } catch (error) {
+    res.sendJson({ error: 'Database error' }, 500);
+  }
+};
+
+MiddlewarePipeline.addMiddleware(asyncMiddleware);
+```
+
+<Note>
+Both `MiddlewareFunction` and `MiddlewareFunctionAsync` are supported (see `src/core/type.ts:8-10`).
+</Note>
+
+## Passing Data Between Middleware
+
+Middleware can attach data to the request object for later use:
+
+```typescript
+import { url } from 'asimilation';
+
+function attachTimestamp(req, res, next) {
+  (req as any).timestamp = Date.now();
+  next();
+}
+
+function attachUser(req, res, next) {
+  (req as any).user = { id: 1, name: 'Alice' };
+  next();
+}
+
+url.addPath('/profile', (req, res) => {
+  const timestamp = (req as any).timestamp;
+  const user = (req as any).user;
+  
+  res.sendJson({
+    user,
+    requestTime: new Date(timestamp).toISOString()
+  }, 200);
+}, {
+  handlers: [attachTimestamp, attachUser]
+});
+```
+
+<Tip>
+For TypeScript, consider extending the request interface to add type safety for custom properties.
+</Tip>
+
+## Terminating the Request Early
+
+Middleware can end the request without calling the route handler:
+
+```typescript
+function rateLimiter(req, res, next) {
+  const ip = req.socket.remoteAddress;
+  const requestCount = getRateLimitCount(ip);
+  
+  if (requestCount > 100) {
+    // Terminate here - don't call next()
+    res.sendJson({ error: 'Rate limit exceeded' }, 429);
+    return;
+  }
+  
+  next(); // Continue to next middleware/handler
+}
+```
+
+## Error Handling in Middleware
+
+Handle errors gracefully in middleware:
+
+```typescript
+import { MiddlewarePipeline } from 'asimilation';
+
+// Built-in error handling middleware
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  try {
+    next();
+  } catch (error) {
+    console.error(error);
+    res.sendJson({ message: 'Internal Server error' }, 500);
+  }
+});
+```
+
+<Note>
+Asimilation includes a default error-handling middleware (see `src/default/middleware/error-handling.ts:5-18`).
+</Note>
+
+## Common Middleware Patterns
+
+<CodeGroup>
+
+```typescript Authentication
+function requireAuth(req, res, next) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (!token) {
+    res.sendJson({ error: 'No token provided' }, 401);
+    return;
+  }
+  
+  try {
+    const decoded = verifyJWT(token);
+    (req as any).user = decoded;
+    next();
+  } catch (error) {
+    res.sendJson({ error: 'Invalid token' }, 401);
+  }
+}
+```
+
+```typescript Role-Based Access
+function requireRole(role: string) {
+  return (req, res, next) => {
+    const user = (req as any).user;
+    
+    if (!user || user.role !== role) {
+      res.sendJson({ error: 'Forbidden' }, 403);
+      return;
+    }
+    
+    next();
+  };
+}
+
+// Usage
+url.addPath('/admin', handler, {
+  handlers: [requireAuth, requireRole('admin')]
+});
+```
+
+```typescript Request Validation
+function validateBody(schema: any) {
+  return (req, res, next) => {
+    const body = (req as any).body;
+    
+    const validation = schema.validate(body);
+    if (validation.error) {
+      res.sendJson({
+        error: 'Validation failed',
+        details: validation.error.details
+      }, 400);
+      return;
+    }
+    
+    next();
+  };
+}
+```
+
+```typescript Caching
+const cache = new Map();
+
+function cacheMiddleware(req, res, next) {
+  const key = req.url;
+  
+  if (cache.has(key)) {
+    console.log('Cache hit');
+    const cached = cache.get(key);
+    res.sendJson(cached, 200);
+    return;
+  }
+  
+  // Store original sendJson
+  const originalSendJson = res.sendJson.bind(res);
+  
+  // Override sendJson to cache response
+  res.sendJson = (data, code) => {
+    if (code === 200) {
+      cache.set(key, data);
+    }
+    originalSendJson(data, code);
+  };
+  
+  next();
+}
+```
+
+</CodeGroup>
+
+## How Middleware Works Internally
+
+Asimilation uses a dispatcher pattern to run middleware:
+
+1. Middleware functions are stored in an array
+2. A recursive dispatcher function calls each middleware in order
+3. Each middleware must call `next()` to invoke the dispatcher with the next index
+4. The pipeline continues until all middleware has executed
+
+See the implementation in `src/core/middleware-manager.ts:23-44`.
+
+## Best Practices
+
+<Steps>
+
+<Step title="Always call next()">
+  Unless you're terminating the request, always call `next()`:
+  ```typescript
+  function myMiddleware(req, res, next) {
+    // Do work...
+    next(); // Required!
+  }
+  ```
+</Step>
+
+<Step title="Check response state">
+  Before writing to the response, check if it's already ended:
+  ```typescript
+  if (res.writableEnded) {
+    return; // Response already sent
+  }
+  res.sendJson({ data: 'value' }, 200);
+  ```
+</Step>
+
+<Step title="Order matters">
+  Add middleware in the correct order. Authentication should come before authorization:
+  ```typescript
+  handlers: [authenticate, authorize, validate]
+  ```
+</Step>
+
+<Step title="Keep middleware focused">
+  Each middleware should have a single responsibility:
+  ```typescript
+  // Good: Focused middleware
+  function logRequest(req, res, next) { /* ... */ }
+  function parseBody(req, res, next) { /* ... */ }
+  
+  // Less ideal: Does too much
+  function doEverything(req, res, next) { /* ... */ }
+  ```
+</Step>
+
+</Steps>
+
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card title="Error Handling" icon="triangle-exclamation" href="/guides/error-handling">
+    Learn how to handle errors in your middleware and routes
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/types/middleware">
+    Explore the complete middleware API documentation
+  </Card>
+</CardGroup>

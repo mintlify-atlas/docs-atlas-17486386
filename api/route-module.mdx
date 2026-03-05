@@ -1,0 +1,348 @@
+---
+title: 'RouteModule'
+description: 'Organize routes with nested modules and path prefixes'
+icon: 'folder-tree'
+---
+
+## Overview
+
+The `RouteModule` class allows you to organize routes hierarchically with shared path prefixes. It's perfect for structuring API versions, grouping related endpoints, or creating modular route configurations.
+
+```typescript
+import { RouteModule, url } from 'asimilation';
+```
+
+## Type Definition
+
+```typescript
+class RouteModule {
+  constructor(manager: RouteManager, nameSpace: string)
+  addPath(path: string, callback: Controller, kwargs?: PathKwargs): void
+  createRouteModule(name: string): RouteModule
+}
+```
+
+## Creating Route Modules
+
+There are two ways to create a `RouteModule`:
+
+### 1. Using url.createRouteModule()
+
+<Note>
+  This is the recommended approach for creating route modules.
+</Note>
+
+```typescript
+import { url } from 'asimilation';
+
+const apiV1 = url.createRouteModule('/api/v1');
+```
+
+### 2. Direct Instantiation
+
+```typescript
+import { RouteModule } from 'asimilation';
+import { url } from 'asimilation';
+
+// Not recommended - use url.createRouteModule() instead
+const apiV1 = new RouteModule(url, '/api/v1');
+```
+
+## Constructor
+
+<ParamField path="manager" type="RouteManager" required>
+  The route manager instance that will handle the routes.
+</ParamField>
+
+<ParamField path="nameSpace" type="string" required>
+  The base path prefix for all routes in this module. Automatically normalized.
+</ParamField>
+
+## Methods
+
+### addPath()
+
+Registers a route within the module's namespace. The path is automatically prefixed with the module's base path.
+
+<ParamField path="path" type="string" required>
+  The relative path for the route. Will be combined with the module's base path.
+</ParamField>
+
+<ParamField path="callback" type="Controller" required>
+  The controller function to handle requests to this route.
+  
+  **Type:**
+  ```typescript
+  (req: ArgumentedIncomingMessageAbc, res: ArgumentedServerResponseAbc) => void
+  ```
+</ParamField>
+
+<ParamField path="kwargs" type="PathKwargs" optional>
+  Optional configuration for the route.
+  
+  **Properties:**
+  - `methods?: string[]` - HTTP methods allowed for this route
+  - `handlers?: MiddlewareFunction[]` - Route-specific middleware
+</ParamField>
+
+<ResponseField name="return" type="void">
+  This method does not return a value.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const apiV1 = url.createRouteModule('/api/v1');
+
+apiV1.addPath('/users', (req, res) => {
+  // Registered as /api/v1/users
+  res.sendJson({ users: [] }, 200);
+});
+
+apiV1.addPath('/users/:id', (req, res) => {
+  // Registered as /api/v1/users/:id
+  const { id } = req.params;
+  res.sendJson({ id }, 200);
+});
+```
+
+---
+
+### createRouteModule()
+
+Creates a nested route module with a combined path prefix.
+
+<ParamField path="name" type="string" required>
+  The path segment to append to the current module's base path.
+</ParamField>
+
+<ResponseField name="return" type="RouteModule">
+  A new RouteModule instance with the combined path prefix.
+</ResponseField>
+
+**Example:**
+
+```typescript
+const api = url.createRouteModule('/api');
+const v1 = api.createRouteModule('/v1');
+const v2 = api.createRouteModule('/v2');
+
+v1.addPath('/users', handler); // /api/v1/users
+v2.addPath('/users', handler); // /api/v2/users
+```
+
+## Examples
+
+### Basic Module Usage
+
+```typescript
+import { url, asi } from 'asimilation';
+
+const apiV1 = url.createRouteModule('/api/v1');
+
+apiV1.addPath('/users', (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}, { methods: ['GET'] });
+
+apiV1.addPath('/users/:id', (req, res) => {
+  const { id } = req.params;
+  res.sendJson({ id, name: 'John' }, 200);
+}, { methods: ['GET'] });
+
+asi.setup(3000, '');
+asi.run();
+```
+
+### Nested Modules
+
+```typescript
+import { url } from 'asimilation';
+
+// Create base API module
+const api = url.createRouteModule('/api');
+
+// Create version modules
+const v1 = api.createRouteModule('/v1');
+const v2 = api.createRouteModule('/v2');
+
+// V1 routes
+v1.addPath('/users', (req, res) => {
+  // /api/v1/users
+  res.sendJson({ version: '1.0', users: [] }, 200);
+});
+
+// V2 routes with new features
+v2.addPath('/users', (req, res) => {
+  // /api/v2/users
+  res.sendJson({ version: '2.0', users: [], metadata: {} }, 200);
+});
+```
+
+### Resource-Based Organization
+
+```typescript
+import { url } from 'asimilation';
+
+const api = url.createRouteModule('/api');
+
+// Users module
+const users = api.createRouteModule('/users');
+users.addPath('/', (req, res) => {
+  // /api/users
+  res.sendJson({ users: [] }, 200);
+}, { methods: ['GET'] });
+
+users.addPath('/:id', (req, res) => {
+  // /api/users/:id
+  const { id } = req.params;
+  res.sendJson({ id }, 200);
+}, { methods: ['GET'] });
+
+// Posts module
+const posts = api.createRouteModule('/posts');
+posts.addPath('/', (req, res) => {
+  // /api/posts
+  res.sendJson({ posts: [] }, 200);
+}, { methods: ['GET'] });
+
+posts.addPath('/:id/comments', (req, res) => {
+  // /api/posts/:id/comments
+  const { id } = req.params;
+  res.sendJson({ postId: id, comments: [] }, 200);
+}, { methods: ['GET'] });
+```
+
+### Modular File Structure
+
+**routes/users.ts**
+```typescript
+import { RouteModule } from 'asimilation';
+
+export function registerUserRoutes(module: RouteModule) {
+  module.addPath('/', (req, res) => {
+    res.sendJson({ users: [] }, 200);
+  }, { methods: ['GET'] });
+
+  module.addPath('/:id', (req, res) => {
+    const { id } = req.params;
+    res.sendJson({ id }, 200);
+  }, { methods: ['GET'] });
+
+  module.addPath('/', (req, res) => {
+    res.sendJson({ success: true }, 201);
+  }, { methods: ['POST'] });
+}
+```
+
+**routes/posts.ts**
+```typescript
+import { RouteModule } from 'asimilation';
+
+export function registerPostRoutes(module: RouteModule) {
+  module.addPath('/', (req, res) => {
+    res.sendJson({ posts: [] }, 200);
+  }, { methods: ['GET'] });
+
+  module.addPath('/:id', (req, res) => {
+    const { id } = req.params;
+    res.sendJson({ id }, 200);
+  }, { methods: ['GET'] });
+}
+```
+
+**index.ts**
+```typescript
+import { url, asi } from 'asimilation';
+import { registerUserRoutes } from './routes/users';
+import { registerPostRoutes } from './routes/posts';
+
+const api = url.createRouteModule('/api/v1');
+
+const usersModule = api.createRouteModule('/users');
+registerUserRoutes(usersModule);
+
+const postsModule = api.createRouteModule('/posts');
+registerPostRoutes(postsModule);
+
+asi.setup(3000, '');
+asi.run();
+```
+
+### With Middleware
+
+```typescript
+import { url } from 'asimilation';
+
+const authMiddleware = (req, res, next) => {
+  const token = req.headers.authorization;
+  if (!token) {
+    res.sendJson({ error: 'Unauthorized' }, 401);
+    return;
+  }
+  next();
+};
+
+const admin = url.createRouteModule('/admin');
+
+admin.addPath('/users', (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}, {
+  methods: ['GET'],
+  handlers: [authMiddleware]
+});
+
+admin.addPath('/settings', (req, res) => {
+  res.sendJson({ settings: {} }, 200);
+}, {
+  methods: ['GET'],
+  handlers: [authMiddleware]
+});
+```
+
+## Path Normalization
+
+<Note>
+  RouteModule automatically normalizes all paths by ensuring they start with `/` and removing trailing slashes.
+</Note>
+
+```typescript
+const api = url.createRouteModule('/api/v1');
+
+// These are all equivalent:
+api.addPath('/users', handler);
+api.addPath('users', handler);   // Normalized to '/users'
+api.addPath('/users/', handler); // Normalized to '/users'
+
+// All register as: /api/v1/users
+```
+
+## Benefits
+
+<CardGroup cols={2}>
+  <Card title="Organization" icon="folder-tree">
+    Group related routes together with shared path prefixes
+  </Card>
+  <Card title="Reusability" icon="recycle">
+    Create reusable route modules that can be mounted at different paths
+  </Card>
+  <Card title="Versioning" icon="code-branch">
+    Easily manage multiple API versions with separate modules
+  </Card>
+  <Card title="Maintainability" icon="wrench">
+    Split route definitions across multiple files for better code organization
+  </Card>
+</CardGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="url" icon="route" href="/api/url">
+    Main route manager for creating modules
+  </Card>
+  <Card title="Controller Type" icon="code" href="/api/types/controller">
+    Controller function signatures
+  </Card>
+  <Card title="PathKwargs Type" icon="gear" href="/api/types/path-kwargs">
+    Route configuration options
+  </Card>
+</CardGroup>

@@ -1,0 +1,460 @@
+---
+title: 'Middleware Types'
+description: 'Type definitions for middleware functions'
+icon: 'filter'
+---
+
+## Overview
+
+Middleware types define the function signatures for middleware that runs before controllers in Asimilation. There are two middleware types: `MiddlewareFunction` (synchronous) and `MiddlewareFunctionAsync` (asynchronous).
+
+```typescript
+import type { Types } from 'asimilation';
+
+// Access types
+type MiddlewareFunction = Types.MiddlewareFunction;
+type MiddlewareFunctionAsync = Types.MiddlewareFunctionAsync;
+```
+
+## Type Definitions
+
+### MiddlewareFunction
+
+Synchronous middleware function for handling requests.
+
+```typescript
+type MiddlewareFunction = (
+  req: ArgumentedIncomingMessageAbc,
+  res: ArgumentedServerResponseAbc,
+  next: (error?: Error) => void
+) => void
+```
+
+<ParamField path="req" type="ArgumentedIncomingMessageAbc">
+  Extended incoming HTTP request object with:
+  - `params: Record<string, string>` - URL path parameters
+  - All standard Node.js `IncomingMessage` properties
+</ParamField>
+
+<ParamField path="res" type="ArgumentedServerResponseAbc">
+  Extended HTTP response object with helper methods:
+  - `sendJson(json: Object, code: number): void`
+  - `sendText(text: string, code: number): void`
+  - `redirect(url: string, code?: number): void`
+</ParamField>
+
+<ParamField path="next" type="(error?: Error) => void">
+  Function to call to pass control to the next middleware or controller.
+  - Call `next()` to continue to the next middleware
+  - Call `next(error)` to pass an error
+  - Don't call `next()` if you send a response
+</ParamField>
+
+<ResponseField name="return" type="void">
+  Middleware functions do not return a value.
+</ResponseField>
+
+---
+
+### MiddlewareFunctionAsync
+
+Asynchronous middleware function for handling requests with async operations.
+
+```typescript
+type MiddlewareFunctionAsync = (
+  req: ArgumentedIncomingMessageAbc,
+  res: ArgumentedServerResponseAbc,
+  next: (error?: Error) => void
+) => Promise<void>
+```
+
+<Note>
+  The parameters are identical to `MiddlewareFunction`, but the function returns a `Promise<void>`.
+</Note>
+
+## Examples
+
+### Basic Logging Middleware
+
+```typescript
+import { MiddlewarePipeline } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const logger: Types.MiddlewareFunction = (req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+};
+
+MiddlewarePipeline.addMiddleware(logger);
+```
+
+### Authentication Middleware
+
+```typescript
+import { MiddlewarePipeline } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const authMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  const token = req.headers.authorization;
+  
+  if (!token) {
+    res.sendJson({ error: 'Unauthorized' }, 401);
+    return; // Don't call next()
+  }
+  
+  // Validate token
+  if (token !== 'valid-token') {
+    res.sendJson({ error: 'Invalid token' }, 401);
+    return;
+  }
+  
+  next(); // Continue to next middleware or controller
+};
+
+MiddlewarePipeline.addMiddleware(authMiddleware);
+```
+
+### Async Database Middleware
+
+```typescript
+import { MiddlewarePipeline } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const dbMiddleware: Types.MiddlewareFunctionAsync = async (req, res, next) => {
+  try {
+    const user = await fetchUserFromDatabase();
+    (req as any).user = user;
+    next();
+  } catch (error) {
+    res.sendJson({ error: 'Database error' }, 500);
+  }
+};
+
+async function fetchUserFromDatabase() {
+  return { id: 1, name: 'Alice' };
+}
+
+MiddlewarePipeline.addMiddleware(dbMiddleware);
+```
+
+### Request Timing Middleware
+
+```typescript
+import type { Types } from 'asimilation';
+import { MiddlewarePipeline } from 'asimilation';
+
+const timingMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  const start = Date.now();
+  
+  // Store original end method
+  const originalEnd = res.end.bind(res);
+  
+  // Override end method
+  res.end = function(...args: any[]) {
+    const duration = Date.now() - start;
+    console.log(`Request took ${duration}ms`);
+    return originalEnd(...args);
+  };
+  
+  next();
+};
+
+MiddlewarePipeline.addMiddleware(timingMiddleware);
+```
+
+### CORS Middleware
+
+```typescript
+import type { Types } from 'asimilation';
+import { MiddlewarePipeline } from 'asimilation';
+
+const corsMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return; // Don't call next() for OPTIONS
+  }
+  
+  next();
+};
+
+MiddlewarePipeline.addMiddleware(corsMiddleware);
+```
+
+### Request Body Parser
+
+```typescript
+import type { Types } from 'asimilation';
+import { MiddlewarePipeline } from 'asimilation';
+
+const bodyParser: Types.MiddlewareFunctionAsync = async (req, res, next) => {
+  if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+    const chunks: Buffer[] = [];
+    
+    req.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
+    
+    req.on('end', () => {
+      const body = Buffer.concat(chunks).toString();
+      
+      try {
+        (req as any).body = JSON.parse(body);
+      } catch (error) {
+        (req as any).body = body;
+      }
+      
+      next();
+    });
+  } else {
+    next();
+  }
+};
+
+MiddlewarePipeline.addMiddleware(bodyParser);
+```
+
+### Route-Specific Middleware
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const adminOnly: Types.MiddlewareFunction = (req, res, next) => {
+  const userRole = (req as any).user?.role;
+  
+  if (userRole !== 'admin') {
+    res.sendJson({ error: 'Forbidden' }, 403);
+    return;
+  }
+  
+  next();
+};
+
+url.addPath('/admin/users', (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}, {
+  handlers: [adminOnly]
+});
+```
+
+### Error Handling Middleware
+
+```typescript
+import type { Types } from 'asimilation';
+import { MiddlewarePipeline } from 'asimilation';
+
+const errorHandler: Types.MiddlewareFunction = (req, res, next) => {
+  try {
+    next();
+  } catch (error) {
+    console.error('Error caught:', error);
+    res.sendJson({
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+};
+
+MiddlewarePipeline.addMiddleware(errorHandler);
+```
+
+### Rate Limiting Middleware
+
+```typescript
+import type { Types } from 'asimilation';
+import { MiddlewarePipeline } from 'asimilation';
+
+const requestCounts = new Map<string, { count: number; resetTime: number }>();
+
+const rateLimiter: Types.MiddlewareFunction = (req, res, next) => {
+  const ip = req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const windowMs = 60000; // 1 minute
+  const maxRequests = 100;
+  
+  const record = requestCounts.get(ip);
+  
+  if (!record || now > record.resetTime) {
+    requestCounts.set(ip, {
+      count: 1,
+      resetTime: now + windowMs
+    });
+    next();
+    return;
+  }
+  
+  if (record.count >= maxRequests) {
+    res.sendJson({ error: 'Too many requests' }, 429);
+    return;
+  }
+  
+  record.count++;
+  next();
+};
+
+MiddlewarePipeline.addMiddleware(rateLimiter);
+```
+
+### Conditional Middleware
+
+```typescript
+import type { Types } from 'asimilation';
+import { MiddlewarePipeline } from 'asimilation';
+
+const conditionalAuth: Types.MiddlewareFunction = (req, res, next) => {
+  const publicPaths = ['/login', '/register', '/health', '/'];
+  
+  // Skip auth for public paths
+  if (publicPaths.includes(req.url || '')) {
+    next();
+    return;
+  }
+  
+  // Require auth for all other paths
+  const token = req.headers.authorization;
+  if (!token) {
+    res.sendJson({ error: 'Unauthorized' }, 401);
+    return;
+  }
+  
+  next();
+};
+
+MiddlewarePipeline.addMiddleware(conditionalAuth);
+```
+
+### Multiple Middleware Chain
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const logRequest: Types.MiddlewareFunction = (req, res, next) => {
+  console.log(`Request: ${req.method} ${req.url}`);
+  next();
+};
+
+const validateAuth: Types.MiddlewareFunction = (req, res, next) => {
+  const token = req.headers.authorization;
+  if (!token) {
+    res.sendJson({ error: 'Unauthorized' }, 401);
+    return;
+  }
+  next();
+};
+
+const checkPermissions: Types.MiddlewareFunction = (req, res, next) => {
+  const userRole = (req as any).user?.role;
+  if (userRole !== 'admin') {
+    res.sendJson({ error: 'Forbidden' }, 403);
+    return;
+  }
+  next();
+};
+
+url.addPath('/admin/settings', (req, res) => {
+  res.sendJson({ settings: {} }, 200);
+}, {
+  handlers: [logRequest, validateAuth, checkPermissions]
+});
+```
+
+## Middleware Execution Flow
+
+Middleware executes in the following order:
+
+1. **Global middleware** (via `MiddlewarePipeline.addMiddleware()`)
+2. **Route-specific middleware** (via `PathKwargs.handlers`)
+3. **Controller function**
+
+```typescript
+import { MiddlewarePipeline, url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+// 1. Global middleware
+const globalMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  console.log('1. Global middleware');
+  next();
+};
+
+MiddlewarePipeline.addMiddleware(globalMiddleware);
+
+// 2. Route middleware
+const routeMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  console.log('2. Route middleware');
+  next();
+};
+
+// 3. Controller
+url.addPath('/test', (req, res) => {
+  console.log('3. Controller');
+  res.sendJson({ success: true }, 200);
+}, {
+  handlers: [routeMiddleware]
+});
+```
+
+## Best Practices
+
+<Tip>
+  Always call `next()` unless you're sending a response or handling an error.
+</Tip>
+
+<Warning>
+  Never call `next()` after sending a response, as this will cause errors.
+</Warning>
+
+```typescript
+// ✓ Good: Send response and return
+const goodMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  if (!authorized) {
+    res.sendJson({ error: 'Unauthorized' }, 401);
+    return; // Don't call next()
+  }
+  next(); // Continue if authorized
+};
+
+// ✗ Bad: Calling next() after response
+const badMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  if (!authorized) {
+    res.sendJson({ error: 'Unauthorized' }, 401);
+    next(); // This will cause errors!
+  }
+};
+```
+
+<Tip>
+  Use async middleware for operations that involve I/O, database queries, or other asynchronous tasks.
+</Tip>
+
+```typescript
+// ✓ Good: Async middleware for async operations
+const asyncMiddleware: Types.MiddlewareFunctionAsync = async (req, res, next) => {
+  try {
+    const data = await fetchFromDatabase();
+    (req as any).data = data;
+    next();
+  } catch (error) {
+    res.sendJson({ error: 'Database error' }, 500);
+  }
+};
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="MiddlewarePipeline" icon="filter" href="/api/middleware-pipeline">
+    Global middleware management
+  </Card>
+  <Card title="PathKwargs" icon="gear" href="/api/types/path-kwargs">
+    Route-specific middleware configuration
+  </Card>
+  <Card title="Controller Types" icon="code" href="/api/types/controller">
+    Controller function signatures
+  </Card>
+</CardGroup>

@@ -1,0 +1,329 @@
+---
+title: Installation
+description: Complete guide to installing and configuring Asimilation in your project
+---
+
+## Prerequisites
+
+Before installing Asimilation, ensure you have the following:
+
+<CardGroup cols={2}>
+  <Card title="Node.js" icon="node">
+    Node.js 16.x or higher (ES Modules support required)
+  </Card>
+  <Card title="Package Manager" icon="box">
+    npm, yarn, or pnpm
+  </Card>
+</CardGroup>
+
+<Note>
+Asimilation requires Node.js with ES Modules support. Make sure your Node.js version is 16.0.0 or later.
+</Note>
+
+### Verify Node.js Version
+
+Check your Node.js version:
+
+```bash
+node --version
+```
+
+If you need to upgrade, visit [nodejs.org](https://nodejs.org) or use a version manager like [nvm](https://github.com/nvm-sh/nvm).
+
+## Installation
+
+### Install the Package
+
+Install `@asimilation/core` using your preferred package manager:
+
+<CodeGroup>
+```bash npm
+npm install @asimilation/core
+```
+
+```bash yarn
+yarn add @asimilation/core
+```
+
+```bash pnpm
+pnpm add @asimilation/core
+```
+</CodeGroup>
+
+### Package Details
+
+- **Package Name**: `@asimilation/core`
+- **Current Version**: 0.0.2
+- **License**: MIT
+- **Repository**: [github.com/juanjh1/Asimilation](https://github.com/juanjh1/Asimilation)
+
+## TypeScript Configuration
+
+Asimilation is built with TypeScript and works best in TypeScript projects. Follow these steps to configure TypeScript:
+
+<Steps>
+  <Step title="Install TypeScript">
+    If you haven't already, install TypeScript:
+
+    ```bash
+    npm install -D typescript
+    ```
+  </Step>
+
+  <Step title="Create tsconfig.json">
+    Create a `tsconfig.json` file in your project root:
+
+    ```json tsconfig.json
+    {
+      "compilerOptions": {
+        "target": "ES2020",
+        "module": "ES2020",
+        "moduleResolution": "node",
+        "lib": ["ES2020"],
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "declaration": true
+      },
+      "include": ["src/**/*"],
+      "exclude": ["node_modules", "dist"]
+    }
+    ```
+
+    <Warning>
+    The `"module": "ES2020"` setting is required because Asimilation uses ES Modules. Do not use `"commonjs"`.
+    </Warning>
+  </Step>
+
+  <Step title="Configure package.json">
+    Add `"type": "module"` to your `package.json`:
+
+    ```json package.json
+    {
+      "name": "my-asimilation-app",
+      "version": "1.0.0",
+      "type": "module",
+      "scripts": {
+        "build": "tsc",
+        "start": "node dist/server.js",
+        "dev": "tsx watch src/server.ts"
+      },
+      "dependencies": {
+        "@asimilation/core": "^0.0.2"
+      },
+      "devDependencies": {
+        "typescript": "^5.0.0",
+        "tsx": "^4.0.0"
+      }
+    }
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+Install `tsx` for a better development experience with hot reloading:
+
+```bash
+npm install -D tsx
+```
+
+Then run: `npx tsx watch src/server.ts`
+</Tip>
+
+## Project Structure
+
+Here's a recommended project structure for Asimilation applications:
+
+```
+my-asimilation-app/
+├── src/
+│   ├── server.ts          # Main server file
+│   ├── routes/
+│   │   ├── users.ts       # User routes
+│   │   ├── posts.ts       # Post routes
+│   │   └── index.ts       # Route registration
+│   ├── middleware/
+│   │   ├── auth.ts        # Authentication middleware
+│   │   └── logger.ts      # Logging middleware
+│   ├── controllers/
+│   │   ├── users.ts       # User controllers
+│   │   └── posts.ts       # Post controllers
+│   └── types/
+│       └── index.ts       # Type definitions
+├── dist/                   # Compiled JavaScript (generated)
+├── node_modules/
+├── package.json
+├── tsconfig.json
+└── .env
+```
+
+### Minimal Structure
+
+For simple projects, you can start with just:
+
+```
+my-app/
+├── src/
+│   └── server.ts
+├── package.json
+└── tsconfig.json
+```
+
+## Verify Installation
+
+Create a simple test file to verify your installation:
+
+<Steps>
+  <Step title="Create test server">
+    Create `src/server.ts`:
+
+    ```typescript src/server.ts
+    import { asi, url } from '@asimilation/core';
+
+    asi.setup(3000, import.meta.url);
+
+    url.addPath("/", (req, res) => {
+      res.sendJson({ message: "Installation successful!" }, 200);
+    });
+
+    asi.run();
+    
+    console.log("Server running on http://localhost:3000");
+    ```
+  </Step>
+
+  <Step title="Build and run">
+    Build and start your server:
+
+    ```bash
+    npm run build
+    npm start
+    ```
+
+    Or for development with tsx:
+
+    ```bash
+    npx tsx src/server.ts
+    ```
+  </Step>
+
+  <Step title="Test the endpoint">
+    In a new terminal, test your server:
+
+    ```bash
+    curl http://localhost:3000/
+    ```
+
+    You should see:
+
+    ```json
+    {"message": "Installation successful!"}
+    ```
+  </Step>
+</Steps>
+
+<Note>
+If you see the success message, Asimilation is correctly installed and configured!
+</Note>
+
+## Using JavaScript (Without TypeScript)
+
+While TypeScript is recommended, you can use Asimilation with plain JavaScript:
+
+<Steps>
+  <Step title="Configure package.json">
+    Add `"type": "module"` to enable ES Modules:
+
+    ```json package.json
+    {
+      "name": "my-app",
+      "version": "1.0.0",
+      "type": "module",
+      "dependencies": {
+        "@asimilation/core": "^0.0.2"
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Create JavaScript server">
+    Create `server.js`:
+
+    ```javascript server.js
+    import { asi, url } from '@asimilation/core';
+
+    asi.setup(3000, import.meta.url);
+
+    url.addPath("/", (req, res) => {
+      res.sendJson({ message: "Hello from JavaScript!" }, 200);
+    });
+
+    asi.run();
+    ```
+  </Step>
+
+  <Step title="Run the server">
+    ```bash
+    node server.js
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+Using JavaScript means you'll lose type safety and IDE autocomplete. TypeScript is strongly recommended for better developer experience.
+</Warning>
+
+## Troubleshooting
+
+### Error: "Cannot use import statement outside a module"
+
+**Solution**: Add `"type": "module"` to your `package.json`.
+
+### Error: "Cannot find module '@asimilation/core'"
+
+**Solution**: Ensure the package is installed:
+
+```bash
+npm install @asimilation/core
+```
+
+### TypeScript compilation errors
+
+**Solution**: Verify your `tsconfig.json` has `"module": "ES2020"` and `"moduleResolution": "node"`.
+
+### Port already in use
+
+**Solution**: Change the port in `asi.setup()` or kill the process using the port:
+
+```bash
+# Find process using port 3000
+lsof -i :3000
+
+# Kill the process (replace PID with actual process ID)
+kill -9 PID
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Build your first server in 5 minutes
+  </Card>
+  <Card title="Core Concepts" icon="book" href="/core-concepts/routing">
+    Learn the fundamental concepts
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/asi">
+    Explore the complete API documentation
+  </Card>
+  <Card title="Guides" icon="map" href="/guides/creating-routes">
+    View guides and tutorials
+  </Card>
+</CardGroup>
+
+<Tip>
+Join the community! Report issues or contribute at [github.com/juanjh1/Asimilation](https://github.com/juanjh1/Asimilation)
+</Tip>

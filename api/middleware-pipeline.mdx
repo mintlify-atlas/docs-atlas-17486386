@@ -1,0 +1,381 @@
+---
+title: 'MiddlewarePipeline'
+description: 'Singleton instance for managing global middleware execution'
+icon: 'filter'
+---
+
+## Overview
+
+The `MiddlewarePipeline` is a singleton instance that manages the execution of global middleware functions in your Asimilation application. It provides a centralized way to add middleware that runs on every request.
+
+```typescript
+import { MiddlewarePipeline } from 'asimilation';
+```
+
+<Note>
+  `MiddlewarePipeline` is a singleton instance of `MiddlewareManager`. There is only one instance shared across your entire application.
+</Note>
+
+## Type Definition
+
+```typescript
+class MiddlewareManager implements MiddlewareManagerI {
+  addMiddleware(middleware: MiddlewareFunction | MiddlewareFunctionAsync): void
+  run(
+    req: ArgumentedIncomingMessageInterface,
+    res: ArgumentedServerResponseInterface,
+    callbackMidd: MiddlewareFunctionAsync | MiddlewareFunction
+  ): Promise<{req: ArgumentedIncomingMessageInterface, res: ArgumentedServerResponseInterface}>
+  runRouteMiddlewares(
+    req: ArgumentedIncomingMessageInterface,
+    res: ArgumentedServerResponseInterface,
+    middlewareList: (MiddlewareFunction | MiddlewareFunctionAsync)[],
+    callbackMidd: MiddlewareFunctionAsync | MiddlewareFunction
+  ): {req: ArgumentedIncomingMessageInterface, res: ArgumentedServerResponseInterface}
+}
+```
+
+## Methods
+
+### addMiddleware()
+
+Adds a global middleware function to the pipeline. Global middleware runs on every incoming request before any route-specific middleware or controllers.
+
+<ParamField path="middleware" type="MiddlewareFunction | MiddlewareFunctionAsync" required>
+  The middleware function to add to the global pipeline.
+  
+  **Type Signatures:**
+  ```typescript
+  type MiddlewareFunction = (
+    req: ArgumentedIncomingMessageAbc,
+    res: ArgumentedServerResponseAbc,
+    next: (error?: Error) => void
+  ) => void
+
+  type MiddlewareFunctionAsync = (
+    req: ArgumentedIncomingMessageAbc,
+    res: ArgumentedServerResponseAbc,
+    next: (error?: Error) => void
+  ) => Promise<void>
+  ```
+</ParamField>
+
+<ResponseField name="return" type="void">
+  This method does not return a value.
+</ResponseField>
+
+**Example:**
+
+```typescript
+import { MiddlewarePipeline } from 'asimilation';
+
+// Synchronous middleware
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
+
+// Asynchronous middleware
+MiddlewarePipeline.addMiddleware(async (req, res, next) => {
+  await logToDatabase(req);
+  next();
+});
+```
+
+---
+
+### run()
+
+<Warning>
+  This method is primarily used internally by the framework. You typically don't need to call it directly.
+</Warning>
+
+Executes all global middleware in sequence, followed by a callback middleware.
+
+<ParamField path="req" type="ArgumentedIncomingMessageInterface" required>
+  The incoming HTTP request object.
+</ParamField>
+
+<ParamField path="res" type="ArgumentedServerResponseInterface" required>
+  The HTTP response object.
+</ParamField>
+
+<ParamField path="callbackMidd" type="MiddlewareFunction | MiddlewareFunctionAsync" required>
+  A callback middleware to execute after all global middleware.
+</ParamField>
+
+<ResponseField name="return" type="Promise<{req, res}>">
+  Returns a promise that resolves to an object containing the request and response objects.
+</ResponseField>
+
+---
+
+### runRouteMiddlewares()
+
+<Warning>
+  This method is primarily used internally by the framework. You typically don't need to call it directly.
+</Warning>
+
+Executes route-specific middleware in sequence, followed by a callback middleware.
+
+<ParamField path="req" type="ArgumentedIncomingMessageInterface" required>
+  The incoming HTTP request object.
+</ParamField>
+
+<ParamField path="res" type="ArgumentedServerResponseInterface" required>
+  The HTTP response object.
+</ParamField>
+
+<ParamField path="middlewareList" type="(MiddlewareFunction | MiddlewareFunctionAsync)[]" required>
+  Array of route-specific middleware functions to execute.
+</ParamField>
+
+<ParamField path="callbackMidd" type="MiddlewareFunction | MiddlewareFunctionAsync" required>
+  A callback middleware to execute after all route middleware.
+</ParamField>
+
+<ResponseField name="return" type="{req, res}">
+  Returns an object containing the request and response objects.
+</ResponseField>
+
+## Examples
+
+### Logging Middleware
+
+```typescript
+import { MiddlewarePipeline, asi, url } from 'asimilation';
+
+// Add global logging middleware
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  const start = Date.now();
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  
+  next();
+  
+  const duration = Date.now() - start;
+  console.log(`Request completed in ${duration}ms`);
+});
+
+url.addPath('/users', (req, res) => {
+  res.sendJson({ users: [] }, 200);
+});
+
+asi.setup(3000, '');
+asi.run();
+```
+
+### Authentication Middleware
+
+```typescript
+import { MiddlewarePipeline, asi, url } from 'asimilation';
+
+// Global authentication check
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  const publicPaths = ['/login', '/register', '/health'];
+  
+  if (publicPaths.includes(req.url || '')) {
+    next();
+    return;
+  }
+  
+  const token = req.headers.authorization;
+  if (!token) {
+    res.sendJson({ error: 'Unauthorized' }, 401);
+    return;
+  }
+  
+  // Validate token here
+  next();
+});
+
+url.addPath('/users', (req, res) => {
+  res.sendJson({ users: [] }, 200);
+});
+
+url.addPath('/login', (req, res) => {
+  res.sendJson({ token: 'abc123' }, 200);
+});
+
+asi.setup(3000, '');
+asi.run();
+```
+
+### CORS Middleware
+
+```typescript
+import { MiddlewarePipeline } from 'asimilation';
+
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+  
+  next();
+});
+```
+
+### Request Body Parser
+
+```typescript
+import { MiddlewarePipeline } from 'asimilation';
+
+MiddlewarePipeline.addMiddleware(async (req, res, next) => {
+  if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+    const chunks: Buffer[] = [];
+    
+    req.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
+    
+    req.on('end', () => {
+      const body = Buffer.concat(chunks).toString();
+      
+      try {
+        (req as any).body = JSON.parse(body);
+      } catch (error) {
+        (req as any).body = body;
+      }
+      
+      next();
+    });
+  } else {
+    next();
+  }
+});
+```
+
+### Multiple Middleware
+
+```typescript
+import { MiddlewarePipeline, asi, url } from 'asimilation';
+
+// Middleware 1: Request ID
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  (req as any).requestId = Math.random().toString(36).substring(7);
+  next();
+});
+
+// Middleware 2: Logging
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  const requestId = (req as any).requestId;
+  console.log(`[${requestId}] ${req.method} ${req.url}`);
+  next();
+});
+
+// Middleware 3: CORS
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
+});
+
+// Middleware 4: Authentication
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  const publicPaths = ['/login', '/health'];
+  if (publicPaths.includes(req.url || '')) {
+    next();
+    return;
+  }
+  
+  const token = req.headers.authorization;
+  if (!token) {
+    res.sendJson({ error: 'Unauthorized' }, 401);
+    return;
+  }
+  
+  next();
+});
+
+url.addPath('/users', (req, res) => {
+  const requestId = (req as any).requestId;
+  res.sendJson({ requestId, users: [] }, 200);
+});
+
+asi.setup(3000, '');
+asi.run();
+```
+
+## Execution Order
+
+Middleware executes in the following order:
+
+1. **Global middleware** (added via `MiddlewarePipeline.addMiddleware()`)
+2. **Route-specific middleware** (defined in `PathKwargs.handlers`)
+3. **Controller function** (the route handler)
+
+```typescript
+import { MiddlewarePipeline, url } from 'asimilation';
+
+// 1. Runs first (global)
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  console.log('Global middleware');
+  next();
+});
+
+// 2. Runs second (route-specific)
+const routeMiddleware = (req, res, next) => {
+  console.log('Route middleware');
+  next();
+};
+
+// 3. Runs last (controller)
+url.addPath('/users', (req, res) => {
+  console.log('Controller');
+  res.sendJson({ users: [] }, 200);
+}, {
+  handlers: [routeMiddleware]
+});
+
+// Output:
+// Global middleware
+// Route middleware
+// Controller
+```
+
+## Best Practices
+
+<Tip>
+  Always call `next()` in your middleware unless you want to stop the request processing (e.g., for authentication failures).
+</Tip>
+
+<Warning>
+  If you send a response in middleware (e.g., `res.sendJson()`), do NOT call `next()` afterward, as this will continue processing and may cause errors.
+</Warning>
+
+```typescript
+// Good: Send response and return
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  if (!authorized) {
+    res.sendJson({ error: 'Unauthorized' }, 401);
+    return; // Don't call next()
+  }
+  next();
+});
+
+// Bad: Calling next() after sending response
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  if (!authorized) {
+    res.sendJson({ error: 'Unauthorized' }, 401);
+    next(); // This will cause errors!
+  }
+});
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Middleware Types" icon="code" href="/api/types/middleware">
+    Middleware function type definitions
+  </Card>
+  <Card title="PathKwargs" icon="gear" href="/api/types/path-kwargs">
+    Route-specific middleware configuration
+  </Card>
+  <Card title="url" icon="route" href="/api/url">
+    Adding routes with middleware
+  </Card>
+</CardGroup>

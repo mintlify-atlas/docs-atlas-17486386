@@ -1,0 +1,337 @@
+---
+title: "Dynamic Routes"
+description: "Handle URL parameters and create flexible route patterns"
+icon: "brackets-curly"
+---
+
+Dynamic routes allow you to capture parameters from the URL path, enabling you to build flexible and data-driven endpoints.
+
+## Basic Dynamic Route Syntax
+
+Define dynamic parameters using angle brackets with a type and name:
+
+```typescript
+import { url } from 'asimilation';
+
+url.addPath('/users/<int:id>', (req, res) => {
+  const userId = req.params.id;
+  res.sendJson({ userId, message: `Fetching user ${userId}` }, 200);
+});
+```
+
+<Note>
+Dynamic parameters are accessible via `req.params` (see `src/core/router-manager.ts:137`).
+</Note>
+
+## Available Parameter Types
+
+Asimilation supports multiple parameter types, each with built-in validation:
+
+<CodeGroup>
+
+```typescript Integer Parameters
+// Matches: /users/1, /users/42, /users/999
+// Does NOT match: /users/abc, /users/1.5
+url.addPath('/users/<int:id>', (req, res) => {
+  const id = req.params.id; // "1", "42", "999"
+  res.sendJson({ userId: id }, 200);
+});
+```
+
+```typescript String Parameters
+// Matches: /users/john, /users/Alice
+// Does NOT match: /users/john123, /users/john-doe
+url.addPath('/users/<string:username>', (req, res) => {
+  const username = req.params.username; // Only letters (a-zA-Z)
+  res.sendJson({ username }, 200);
+});
+```
+
+```typescript Slug Parameters
+// Matches: /posts/my-blog-post, /posts/hello-world-2024
+// Pattern: lowercase letters, numbers, and hyphens
+url.addPath('/posts/<slug:slug>', (req, res) => {
+  const slug = req.params.slug; // "my-blog-post"
+  res.sendJson({ postSlug: slug }, 200);
+});
+```
+
+```typescript Boolean Parameters
+// Matches: /settings/true, /settings/false
+// Does NOT match: /settings/1, /settings/yes
+url.addPath('/settings/<boolean:enabled>', (req, res) => {
+  const enabled = req.params.enabled; // "true" or "false"
+  res.sendJson({ enabled: enabled === 'true' }, 200);
+});
+```
+
+</CodeGroup>
+
+<Warning>
+Parameter values are always strings. Parse them to the appropriate type in your handler:
+```typescript
+const id = parseInt(req.params.id, 10);
+const enabled = req.params.enabled === 'true';
+```
+</Warning>
+
+## Parameter Type Reference
+
+The available parameter types are defined in `src/enums/param-type.ts:1-34`:
+
+| Type | Syntax | Pattern | Example |
+|------|--------|---------|----------|
+| **int** | `<int:name>` | `\d+` | `123`, `0`, `999` |
+| **string** | `<string:name>` | `[a-zA-Z]+` | `hello`, `World` |
+| **slug** | `<slug:name>` | `[a-z0-9-]+` | `my-post`, `article-2024` |
+| **boolean** | `<boolean:name>` | `(true\|false)` | `true`, `false` |
+
+## Multiple Parameters
+
+Capture multiple parameters in a single route:
+
+```typescript
+url.addPath('/users/<int:userId>/posts/<int:postId>', (req, res) => {
+  const { userId, postId } = req.params;
+  
+  res.sendJson({
+    message: `Fetching post ${postId} from user ${userId}`,
+    userId,
+    postId
+  }, 200);
+});
+
+// Matches: /users/5/posts/42
+// req.params = { userId: "5", postId: "42" }
+```
+
+## Mixing Static and Dynamic Segments
+
+Combine static path segments with dynamic parameters:
+
+```typescript
+url.addPath('/api/v1/users/<int:id>/profile', (req, res) => {
+  const userId = req.params.id;
+  res.sendJson({ userId, profile: {} }, 200);
+});
+
+// Matches: /api/v1/users/123/profile
+// Does NOT match: /api/v1/users/abc/profile
+```
+
+## Accessing Route Parameters
+
+Route parameters are available on the request object after middleware execution:
+
+```typescript
+url.addPath('/articles/<slug:slug>', (req, res) => {
+  // Access all parameters
+  console.log(req.params); // { slug: "my-article" }
+  
+  // Access specific parameter
+  const slug = req.params.slug;
+  
+  // Validate and use
+  if (!slug) {
+    res.sendJson({ error: 'Slug is required' }, 400);
+    return;
+  }
+  
+  res.sendJson({ article: { slug } }, 200);
+});
+```
+
+## Parameter Validation
+
+While type validation is automatic, you can add custom validation:
+
+```typescript
+url.addPath('/users/<int:id>', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  
+  // Custom validation
+  if (id < 1 || id > 10000) {
+    res.sendJson({ error: 'Invalid user ID range' }, 400);
+    return;
+  }
+  
+  res.sendJson({ userId: id }, 200);
+});
+```
+
+## Route Matching Process
+
+Asimilation uses a two-step matching process:
+
+<Steps>
+
+<Step title="Check static routes first">
+  The router first checks if the URL matches any static route exactly:
+  ```typescript
+  // Static route (checked first)
+  url.addPath('/users/new', handler1);
+  ```
+</Step>
+
+<Step title="Match dynamic routes">
+  If no static route matches, dynamic routes are tested using compiled regex patterns:
+  ```typescript
+  // Dynamic route (checked second)
+  url.addPath('/users/<int:id>', handler2);
+  ```
+</Step>
+
+<Step title="Extract parameters">
+  When a dynamic route matches, named capture groups extract the parameters:
+  ```typescript
+  // URL: /users/42
+  // Regex: ^/users/(?<id>\d+)$
+  // Result: req.params = { id: "42" }
+  ```
+</Step>
+
+</Steps>
+
+<Note>
+Static routes always take precedence over dynamic routes (see `src/core/router-manager.ts:95-101`).
+</Note>
+
+## How Dynamic Routes Work
+
+Under the hood, Asimilation compiles dynamic routes into regular expressions:
+
+1. **Pattern Detection**: The framework checks if a path contains type parameters (see `src/helpers/url-regex.ts:4-7`)
+2. **Parameter Extraction**: Parameter names are extracted from the path (see `src/helpers/url-regex.ts:25-36`)
+3. **Regex Compilation**: The path is compiled into a regex pattern with named capture groups (see `src/helpers/url-regex.ts:56-63`)
+4. **Route Matching**: Incoming URLs are tested against the compiled patterns (see `src/core/router-manager.ts:55-60`)
+
+```typescript
+// Your route definition:
+url.addPath('/users/<int:id>/posts/<slug:slug>', handler);
+
+// Compiled to regex:
+// ^/users/(?<id>\d+)/posts/(?<slug>[a-z0-9-]+)$
+
+// Matches:
+// ✓ /users/42/posts/my-post
+// ✗ /users/abc/posts/my-post (id must be integer)
+// ✗ /users/42/posts/My-Post (slug must be lowercase)
+```
+
+## Common Patterns
+
+<CodeGroup>
+
+```typescript RESTful Resources
+// List all users
+url.addPath('/users', listUsers, { methods: ['GET'] });
+
+// Get specific user
+url.addPath('/users/<int:id>', getUser, { methods: ['GET'] });
+
+// Update user
+url.addPath('/users/<int:id>', updateUser, { methods: ['PUT'] });
+
+// Delete user
+url.addPath('/users/<int:id>', deleteUser, { methods: ['DELETE'] });
+```
+
+```typescript Nested Resources
+// User's posts
+url.addPath('/users/<int:userId>/posts', getUserPosts);
+
+// Specific post from user
+url.addPath('/users/<int:userId>/posts/<int:postId>', getUserPost);
+
+// Comments on a post
+url.addPath('/posts/<int:postId>/comments/<int:commentId>', getComment);
+```
+
+```typescript Slugs for SEO
+// Blog posts with SEO-friendly URLs
+url.addPath('/blog/<slug:slug>', (req, res) => {
+  const slug = req.params.slug;
+  // slug: "my-first-blog-post-2024"
+  res.sendJson({ post: { slug } }, 200);
+});
+```
+
+</CodeGroup>
+
+## Error Handling
+
+When a parameter type doesn't match, the route won't be selected:
+
+```typescript
+url.addPath('/users/<int:id>', (req, res) => {
+  res.sendJson({ userId: req.params.id }, 200);
+});
+
+// Request: GET /users/abc
+// Result: 404 Not Found (route doesn't match)
+
+// Request: GET /users/123
+// Result: 200 OK (route matches)
+```
+
+<Tip>
+If an undefined parameter type is used, Asimilation throws a `TypeIsNotDefined` error at startup (see `src/exceptions/domain/url-regex.ts:1-7`).
+</Tip>
+
+## Best Practices
+
+<Steps>
+
+<Step title="Choose appropriate types">
+  Use the most restrictive type that fits your data:
+  ```typescript
+  // Good: Specific type for IDs
+  url.addPath('/users/<int:id>', handler);
+  
+  // Less ideal: Too permissive
+  url.addPath('/users/<string:id>', handler);
+  ```
+</Step>
+
+<Step title="Validate parameter values">
+  Add business logic validation beyond type checking:
+  ```typescript
+  const id = parseInt(req.params.id, 10);
+  if (id < 1) {
+    res.sendJson({ error: 'ID must be positive' }, 400);
+    return;
+  }
+  ```
+</Step>
+
+<Step title="Use descriptive parameter names">
+  ```typescript
+  // Good
+  url.addPath('/users/<int:userId>/posts/<int:postId>', handler);
+  
+  // Unclear
+  url.addPath('/users/<int:id1>/posts/<int:id2>', handler);
+  ```
+</Step>
+
+<Step title="Document expected formats">
+  If using slugs or strings, document the expected format:
+  ```typescript
+  // Slug format: lowercase letters, numbers, hyphens only
+  // Example: "my-blog-post-2024"
+  url.addPath('/posts/<slug:slug>', handler);
+  ```
+</Step>
+
+</Steps>
+
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card title="Middleware Pipeline" icon="filter" href="/guides/middleware-pipeline">
+    Add middleware to validate parameters and enhance routes
+  </Card>
+  <Card title="Error Handling" icon="triangle-exclamation" href="/guides/error-handling">
+    Learn how to handle validation errors and 404s
+  </Card>
+</CardGroup>

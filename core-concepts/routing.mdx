@@ -1,0 +1,252 @@
+---
+title: "Routing"
+description: "Learn how to define routes and handle different HTTP methods in Asimilation"
+---
+
+## Overview
+
+Asimilation's routing system provides a flexible way to map URLs to handler functions. It supports both static and dynamic routes with typed parameters, making it easy to build RESTful APIs and web applications.
+
+## Basic Route Registration
+
+Routes are registered using the `addPath()` method on the URL manager. The simplest form accepts a path and a controller function:
+
+```typescript
+import { url } from "asimilation";
+
+url.addPath("/", (req, res) => {
+  res.sendJson({ message: "Hello World" }, 200);
+});
+```
+
+<Note>
+The `url` object is exported from `asimilation/core/main` and provides access to the `RouteManager` instance.
+</Note>
+
+## Static Routes
+
+Static routes match exact URL paths. These are the most common type of routes:
+
+```typescript
+url.addPath("/about", (req, res) => {
+  res.sendText("About page", 200);
+});
+
+url.addPath("/api/users", (req, res) => {
+  res.sendJson({ users: [] }, 200);
+});
+```
+
+Static routes are stored in a `Map` structure and provide O(1) lookup performance (see `router-manager.ts:45`).
+
+## Dynamic Routes with Parameters
+
+Dynamic routes allow you to capture parts of the URL as parameters. Asimilation uses a special syntax with angle brackets to define typed parameters:
+
+### Syntax
+
+```
+/<type:name>
+```
+
+Where:
+- `type` is the parameter type (int, string, slug, boolean)
+- `name` is the parameter name accessible in `req.params`
+
+### Parameter Types
+
+Asimilation supports four parameter types (defined in `enums/param-type.ts:3-6`):
+
+<CodeGroup>
+```typescript int
+// Matches: /users/123, /users/456
+// Does not match: /users/abc
+url.addPath("/users/<int:id>", (req, res) => {
+  const userId = req.params.id; // "123"
+  res.sendJson({ userId }, 200);
+});
+```
+
+```typescript string
+// Matches: /hello/john, /hello/jane
+// Does not match: /hello/123
+url.addPath("/hello/<string:name>", (req, res) => {
+  const name = req.params.name; // "john"
+  res.sendText(`Hello ${name}!`, 200);
+});
+```
+
+```typescript slug
+// Matches: /posts/my-first-post, /posts/hello-world-123
+// Pattern: [a-z0-9-]+
+url.addPath("/posts/<slug:slug>", (req, res) => {
+  const slug = req.params.slug;
+  res.sendJson({ post: slug }, 200);
+});
+```
+
+```typescript boolean
+// Matches: /settings/true, /settings/false
+url.addPath("/settings/<boolean:enabled>", (req, res) => {
+  const enabled = req.params.enabled; // "true" or "false"
+  res.sendJson({ enabled }, 200);
+});
+```
+</CodeGroup>
+
+### Multiple Parameters
+
+You can use multiple parameters in a single route:
+
+```typescript
+url.addPath("/api/<string:resource>/<int:id>", (req, res) => {
+  const { resource, id } = req.params;
+  res.sendJson({ resource, id }, 200);
+});
+
+// Matches: /api/users/42
+// req.params = { resource: "users", id: "42" }
+```
+
+## HTTP Methods
+
+By default, routes respond to all HTTP methods. You can restrict routes to specific methods using the `methods` option:
+
+```typescript
+url.addPath("/api/users", (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}, {
+  methods: ["GET"]
+});
+
+url.addPath("/api/users", (req, res) => {
+  // Handle user creation
+  res.sendJson({ created: true }, 201);
+}, {
+  methods: ["POST"]
+});
+```
+
+<Tip>
+You can register the same path multiple times with different HTTP methods to create RESTful endpoints.
+</Tip>
+
+### Supported HTTP Methods
+
+- GET
+- POST
+- PUT
+- PATCH
+- DELETE
+- OPTIONS
+- HEAD
+
+## How Path Matching Works
+
+<Steps>
+  <Step title="Parse the URL">
+    The incoming URL is split at the `?` to separate the path from query parameters (`router-manager.ts:113-115`).
+  </Step>
+  
+  <Step title="Check Static Routes">
+    First, Asimilation checks if the path exists in the static routes `Map` (`router-manager.ts:117`).
+  </Step>
+  
+  <Step title="Check Dynamic Routes">
+    If no static match is found, it iterates through registered dynamic route patterns using regex matching (`router-manager.ts:55-60`).
+  </Step>
+  
+  <Step title="Extract Parameters">
+    For dynamic routes, named capture groups extract parameter values from the URL (`router-manager.ts:62-72`).
+  </Step>
+  
+  <Step title="Validate HTTP Method">
+    The HTTP method is validated against the route's allowed methods (`router-manager.ts:74-93`).
+  </Step>
+  
+  <Step title="Execute Handler">
+    If all checks pass, the route's controller function is executed with the request and response objects.
+  </Step>
+</Steps>
+
+## Path Normalization
+
+All paths are automatically normalized (defined in `helpers/url-regex.ts:38-47`):
+
+- Leading slashes are added if missing
+- Multiple consecutive slashes are collapsed
+- Trailing slashes are handled consistently
+
+```typescript
+// These are all equivalent:
+url.addPath("users", handler);      // Normalized to "/users"
+url.addPath("/users", handler);     // Already normalized
+url.addPath("//users//", handler);  // Normalized to "/users"
+```
+
+## Route Registration Internals
+
+When you call `addPath()`, the following happens (see `abstract/add_path_abstract.ts:32-51`):
+
+1. The path is normalized
+2. The system checks if the path contains typed parameters using `hasTypeParams()`
+3. For static paths, the route is added to the `paths` Map
+4. For dynamic paths:
+   - Parameter names are extracted using `extractParamsNames()`
+   - A regex pattern is compiled using `compiledUrlPattern()`
+   - The route is added to the `dynamicPath` Map with the regex as the key
+
+## Example: Building a RESTful API
+
+```typescript
+import { url } from "asimilation";
+
+// List all users
+url.addPath("/api/users", (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}, { methods: ["GET"] });
+
+// Get a single user
+url.addPath("/api/users/<int:id>", (req, res) => {
+  const userId = req.params.id;
+  res.sendJson({ id: userId, name: "John" }, 200);
+}, { methods: ["GET"] });
+
+// Create a user
+url.addPath("/api/users", (req, res) => {
+  res.sendJson({ created: true }, 201);
+}, { methods: ["POST"] });
+
+// Update a user
+url.addPath("/api/users/<int:id>", (req, res) => {
+  const userId = req.params.id;
+  res.sendJson({ updated: true, id: userId }, 200);
+}, { methods: ["PUT"] });
+
+// Delete a user
+url.addPath("/api/users/<int:id>", (req, res) => {
+  const userId = req.params.id;
+  res.sendJson({ deleted: true, id: userId }, 200);
+}, { methods: ["DELETE"] });
+```
+
+## Performance Characteristics
+
+- **Static routes**: O(1) lookup time using a Map
+- **Dynamic routes**: O(n) where n is the number of dynamic patterns, but typically very fast for small numbers of routes
+- **Parameter extraction**: O(1) after pattern match using named capture groups
+
+<Note>
+The framework is designed to check static routes before dynamic routes, so frequently accessed static paths have optimal performance.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Middlewares" icon="filter" href="./middlewares">
+    Learn how to add middleware to your routes
+  </Card>
+  <Card title="Request & Response" icon="arrows-left-right" href="./request-response">
+    Explore the request and response objects
+  </Card>
+</CardGroup>

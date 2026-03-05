@@ -1,0 +1,226 @@
+---
+title: "Creating Routes"
+description: "Learn how to define and organize routes in Asimilation"
+icon: "route"
+---
+
+Routes are the foundation of your Asimilation application. This guide will walk you through creating routes, defining HTTP methods, and organizing your route definitions.
+
+## Basic Route Creation
+
+Use the `addPath()` method to create a route. Routes are added to the `url` manager exported from Asimilation:
+
+```typescript
+import { url } from 'asimilation';
+import { ArgumentedIncomingMessageAbc, ArgumentedServerResponseAbc } from 'asimilation';
+
+url.addPath('/hello', (req: ArgumentedIncomingMessageAbc, res: ArgumentedServerResponseAbc) => {
+  res.sendJson({ message: 'Hello, World!' }, 200);
+});
+```
+
+<Note>
+By default, routes respond to all HTTP methods unless you specify otherwise using the `methods` option.
+</Note>
+
+## Specifying HTTP Methods
+
+Control which HTTP methods a route responds to using the `methods` option in the third parameter:
+
+```typescript
+url.addPath('/users', (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}, {
+  methods: ['GET']
+});
+
+url.addPath('/users', (req, res) => {
+  res.sendJson({ message: 'User created' }, 201);
+}, {
+  methods: ['POST']
+});
+```
+
+<Tip>
+You can register the same path with different HTTP methods by calling `addPath()` multiple times with different `methods` options.
+</Tip>
+
+## Multiple Methods on One Route
+
+Handle multiple HTTP methods with a single route definition:
+
+```typescript
+url.addPath('/api/data', (req, res) => {
+  if (req.method === 'GET') {
+    res.sendJson({ data: 'fetched' }, 200);
+  } else if (req.method === 'POST') {
+    res.sendJson({ data: 'created' }, 201);
+  }
+}, {
+  methods: ['GET', 'POST']
+});
+```
+
+## Response Helpers
+
+Asimilation provides convenient response methods on the enhanced response object:
+
+<CodeGroup>
+
+```typescript JSON Response
+res.sendJson({ message: 'Success' }, 200);
+```
+
+```typescript Text Response
+res.sendText('Plain text response', 200);
+```
+
+```typescript Redirect
+res.redirect('/new-location', 302);
+```
+
+</CodeGroup>
+
+## Path Normalization
+
+Asimilation automatically normalizes paths for you:
+
+```typescript
+// These are all equivalent:
+url.addPath('/api/users', handler);
+url.addPath('api/users', handler);    // Leading slash added
+url.addPath('/api//users', handler);  // Multiple slashes normalized
+```
+
+<Note>
+Path normalization is handled by the `normalizePath()` function (see `src/helpers/url-regex.ts:38-47`).
+</Note>
+
+## Organizing Routes with Modules
+
+For larger applications, organize routes using `RouteModule`. This allows you to create namespaced route groups:
+
+```typescript
+import { url } from 'asimilation';
+
+// Create a module with a base path
+const apiModule = url.createRouteModule('/api');
+
+// All routes in this module are prefixed with /api
+apiModule.addPath('/users', (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}); // Responds to /api/users
+
+apiModule.addPath('/posts', (req, res) => {
+  res.sendJson({ posts: [] }, 200);
+}); // Responds to /api/posts
+```
+
+## Nested Route Modules
+
+Create nested modules for deeper organization:
+
+```typescript
+const apiModule = url.createRouteModule('/api');
+const v1Module = apiModule.createRouteModule('/v1');
+
+// This route responds to /api/v1/users
+v1Module.addPath('/users', (req, res) => {
+  res.sendJson({ version: 'v1', users: [] }, 200);
+});
+```
+
+<Tip>
+Route modules automatically handle path concatenation and normalization (see `src/core/router-manager.ts:148-172`).
+</Tip>
+
+## Organizing Routes in Separate Files
+
+For better code organization, split routes into separate files:
+
+<CodeGroup>
+
+```typescript routes/users.ts
+import { RouteManagerI } from 'asimilation';
+
+export function registerUserRoutes(router: RouteManagerI) {
+  router.addPath('/users', (req, res) => {
+    res.sendJson({ users: [] }, 200);
+  }, { methods: ['GET'] });
+
+  router.addPath('/users', (req, res) => {
+    res.sendJson({ message: 'User created' }, 201);
+  }, { methods: ['POST'] });
+}
+```
+
+```typescript routes/posts.ts
+import { RouteManagerI } from 'asimilation';
+
+export function registerPostRoutes(router: RouteManagerI) {
+  router.addPath('/posts', (req, res) => {
+    res.sendJson({ posts: [] }, 200);
+  }, { methods: ['GET'] });
+}
+```
+
+```typescript main.ts
+import { asi, url } from 'asimilation';
+import { registerUserRoutes } from './routes/users';
+import { registerPostRoutes } from './routes/posts';
+
+registerUserRoutes(url);
+registerPostRoutes(url);
+
+asi.setup(3000, '');
+asi.run();
+```
+
+</CodeGroup>
+
+## Best Practices
+
+<Steps>
+
+<Step title="Use descriptive paths">
+  Make your route paths clear and RESTful:
+  - `/users` - Collection
+  - `/users/<int:id>` - Specific resource
+  - `/users/<int:id>/posts` - Nested resource
+</Step>
+
+<Step title="Organize by feature">
+  Group related routes in modules or separate files:
+  ```typescript
+  const authModule = url.createRouteModule('/auth');
+  const apiModule = url.createRouteModule('/api');
+  ```
+</Step>
+
+<Step title="Specify HTTP methods">
+  Always specify which HTTP methods a route should handle:
+  ```typescript
+  url.addPath('/resource', handler, { methods: ['GET', 'POST'] });
+  ```
+</Step>
+
+<Step title="Use consistent status codes">
+  - `200` - Success (GET)
+  - `201` - Created (POST)
+  - `204` - No Content (DELETE)
+  - `404` - Not Found
+  - `500` - Server Error
+</Step>
+
+</Steps>
+
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card title="Dynamic Routes" icon="code" href="/guides/dynamic-routes">
+    Learn how to handle URL parameters and dynamic paths
+  </Card>
+  <Card title="Middleware" icon="filter" href="/guides/middleware-pipeline">
+    Add middleware to your routes for authentication, logging, and more
+  </Card>
+</CardGroup>

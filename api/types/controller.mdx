@@ -1,0 +1,378 @@
+---
+title: 'Controller Types'
+description: 'Type definitions for route controller functions'
+icon: 'code'
+---
+
+## Overview
+
+Controller types define the function signatures for handling HTTP requests in Asimilation. There are two main controller types: `Controller` (with extended request/response objects) and `BasicController` (with standard Node.js HTTP objects).
+
+```typescript
+import type { Types } from 'asimilation';
+
+// Access types
+type Controller = Types.Controller;
+type BasicController = Types.BasicController;
+```
+
+## Type Definitions
+
+### Controller
+
+The primary controller type with extended request and response objects that provide additional helper methods.
+
+```typescript
+type Controller = (
+  req: ArgumentedIncomingMessageAbc,
+  res: ArgumentedServerResponseAbc
+) => void
+```
+
+<ParamField path="req" type="ArgumentedIncomingMessageAbc">
+  Extended incoming HTTP request object with additional properties:
+  - `params: Record<string, string>` - URL path parameters from dynamic routes
+  - All standard Node.js `IncomingMessage` properties (headers, method, url, etc.)
+</ParamField>
+
+<ParamField path="res" type="ArgumentedServerResponseAbc">
+  Extended HTTP response object with helper methods:
+  - `sendJson(json: Object, code: number): void` - Send JSON response
+  - `sendText(text: string, code: number): void` - Send text response
+  - `redirect(url: string, code?: number): void` - Redirect to another URL
+  - All standard Node.js `ServerResponse` properties and methods
+</ParamField>
+
+<ResponseField name="return" type="void">
+  Controller functions do not return a value. They send responses using the `res` object.
+</ResponseField>
+
+---
+
+### BasicController
+
+A basic controller type using standard Node.js HTTP objects without extended functionality.
+
+```typescript
+type BasicController = (
+  req: IncomingMessage,
+  res: ServerResponse
+) => void
+```
+
+<ParamField path="req" type="IncomingMessage">
+  Standard Node.js incoming HTTP request object.
+</ParamField>
+
+<ParamField path="res" type="ServerResponse">
+  Standard Node.js HTTP response object.
+</ParamField>
+
+<ResponseField name="return" type="void">
+  Controller functions do not return a value.
+</ResponseField>
+
+<Note>
+  `BasicController` is primarily for internal use. Use `Controller` for your route handlers to benefit from the extended functionality.
+</Note>
+
+## Examples
+
+### Basic Controller
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const getUsers: Types.Controller = (req, res) => {
+  const users = [
+    { id: 1, name: 'Alice' },
+    { id: 2, name: 'Bob' }
+  ];
+  
+  res.sendJson({ users }, 200);
+};
+
+url.addPath('/users', getUsers);
+```
+
+### Controller with Path Parameters
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const getUserById: Types.Controller = (req, res) => {
+  const { id } = req.params;
+  
+  // Fetch user from database
+  const user = { id, name: 'Alice' };
+  
+  res.sendJson({ user }, 200);
+};
+
+url.addPath('/users/:id', getUserById);
+```
+
+### Controller with Multiple Parameters
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const getComment: Types.Controller = (req, res) => {
+  const { postId, commentId } = req.params;
+  
+  res.sendJson({
+    postId,
+    commentId,
+    comment: 'This is a comment'
+  }, 200);
+};
+
+url.addPath('/posts/:postId/comments/:commentId', getComment);
+```
+
+### Controller with Headers
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const authenticatedRoute: Types.Controller = (req, res) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader) {
+    res.sendJson({ error: 'Missing authorization header' }, 401);
+    return;
+  }
+  
+  res.sendJson({ message: 'Authenticated!' }, 200);
+};
+
+url.addPath('/protected', authenticatedRoute);
+```
+
+### Controller with Query Parameters
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const searchUsers: Types.Controller = (req, res) => {
+  // Parse query string from URL
+  const urlParts = req.url?.split('?') || [];
+  const queryString = urlParts[1] || '';
+  const params = new URLSearchParams(queryString);
+  
+  const search = params.get('q') || '';
+  const limit = parseInt(params.get('limit') || '10');
+  
+  res.sendJson({
+    search,
+    limit,
+    results: []
+  }, 200);
+};
+
+url.addPath('/search', searchUsers);
+// Usage: GET /search?q=alice&limit=5
+```
+
+### Text Response Controller
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const getHello: Types.Controller = (req, res) => {
+  res.sendText('Hello, World!', 200);
+};
+
+url.addPath('/hello', getHello);
+```
+
+### Redirect Controller
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const oldRoute: Types.Controller = (req, res) => {
+  res.redirect('/new-route', 301); // Permanent redirect
+};
+
+const temporaryRedirect: Types.Controller = (req, res) => {
+  res.redirect('/temporary', 302); // Temporary redirect (default)
+};
+
+url.addPath('/old', oldRoute);
+url.addPath('/temp', temporaryRedirect);
+```
+
+### Async Controller Pattern
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const getUsers: Types.Controller = async (req, res) => {
+  try {
+    // Async operation
+    const users = await fetchUsersFromDatabase();
+    res.sendJson({ users }, 200);
+  } catch (error) {
+    res.sendJson({ error: 'Failed to fetch users' }, 500);
+  }
+};
+
+async function fetchUsersFromDatabase() {
+  // Database query
+  return [
+    { id: 1, name: 'Alice' },
+    { id: 2, name: 'Bob' }
+  ];
+}
+
+url.addPath('/users', getUsers);
+```
+
+### Error Handling Controller
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const safeController: Types.Controller = async (req, res) => {
+  try {
+    const data = await riskyOperation();
+    res.sendJson({ data }, 200);
+  } catch (error) {
+    console.error('Error:', error);
+    res.sendJson({
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+};
+
+async function riskyOperation() {
+  throw new Error('Something went wrong');
+}
+
+url.addPath('/risky', safeController);
+```
+
+### Controller with Request Body
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const createUser: Types.Controller = (req, res) => {
+  let body = '';
+  
+  req.on('data', (chunk) => {
+    body += chunk.toString();
+  });
+  
+  req.on('end', () => {
+    try {
+      const userData = JSON.parse(body);
+      
+      // Create user in database
+      const newUser = {
+        id: Date.now(),
+        ...userData
+      };
+      
+      res.sendJson({ user: newUser }, 201);
+    } catch (error) {
+      res.sendJson({ error: 'Invalid JSON' }, 400);
+    }
+  });
+};
+
+url.addPath('/users', createUser, { methods: ['POST'] });
+```
+
+## Request Object Properties
+
+The `ArgumentedIncomingMessageAbc` object includes:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `params` | `Record<string, string>` | URL path parameters from dynamic routes |
+| `method` | `string \| undefined` | HTTP method (GET, POST, etc.) |
+| `url` | `string \| undefined` | Request URL path and query string |
+| `headers` | `IncomingHttpHeaders` | HTTP request headers |
+| `statusCode` | `number` | HTTP status code |
+
+## Response Object Methods
+
+The `ArgumentedServerResponseAbc` object provides:
+
+### sendJson()
+
+Sends a JSON response with the specified status code.
+
+```typescript
+res.sendJson({ message: 'Success' }, 200);
+res.sendJson({ error: 'Not found' }, 404);
+```
+
+### sendText()
+
+Sends a plain text response with the specified status code.
+
+```typescript
+res.sendText('Hello, World!', 200);
+res.sendText('Not Found', 404);
+```
+
+### redirect()
+
+Redirects to another URL with an optional status code (defaults to 302).
+
+```typescript
+res.redirect('/new-url');           // 302 temporary redirect
+res.redirect('/new-url', 301);      // 301 permanent redirect
+res.redirect('/new-url', 307);      // 307 temporary redirect (preserve method)
+```
+
+## Type Safety
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+// Explicitly typed controller
+const typedController: Types.Controller = (req, res) => {
+  // TypeScript knows about req.params
+  const { id } = req.params; // ✓ Type-safe
+  
+  // TypeScript knows about res.sendJson
+  res.sendJson({ id }, 200); // ✓ Type-safe
+};
+
+// Inline controller (type inferred)
+url.addPath('/users/:id', (req, res) => {
+  // TypeScript infers the types
+  const { id } = req.params;
+  res.sendJson({ id }, 200);
+});
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="url.addPath()" icon="route" href="/api/url#addpath">
+    Register controllers for routes
+  </Card>
+  <Card title="Middleware Types" icon="filter" href="/api/types/middleware">
+    Middleware function signatures
+  </Card>
+  <Card title="PathKwargs" icon="gear" href="/api/types/path-kwargs">
+    Route configuration options
+  </Card>
+</CardGroup>

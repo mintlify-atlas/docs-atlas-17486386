@@ -1,0 +1,433 @@
+---
+title: 'PathKwargs Type'
+description: 'Configuration options for route registration'
+icon: 'gear'
+---
+
+## Overview
+
+The `PathKwargs` type defines optional configuration parameters for route registration. It allows you to specify HTTP methods and route-specific middleware when adding routes.
+
+```typescript
+import type { Types } from 'asimilation';
+
+type PathKwargs = Types.PathKwargs;
+```
+
+## Type Definition
+
+```typescript
+type PathKwargs = {
+  methods?: string[]
+  handlers?: (MiddlewareFunction | MiddlewareFunctionAsync)[]
+}
+```
+
+<ParamField path="methods" type="string[]" optional>
+  Array of HTTP methods allowed for this route.
+  
+  **Common values:**
+  - `'GET'` - Retrieve data
+  - `'POST'` - Create new resources
+  - `'PUT'` - Update entire resources
+  - `'PATCH'` - Update partial resources
+  - `'DELETE'` - Remove resources
+  - `'OPTIONS'` - CORS preflight requests
+  - `'HEAD'` - Get headers only
+  
+  **Default:** If not specified, the route accepts all HTTP methods.
+</ParamField>
+
+<ParamField path="handlers" type="(MiddlewareFunction | MiddlewareFunctionAsync)[]" optional>
+  Array of middleware functions to execute before the controller.
+  
+  Middleware executes in the order specified in the array.
+  
+  **Default:** If not specified, no route-specific middleware is applied.
+</ParamField>
+
+## Examples
+
+### Basic Method Restriction
+
+```typescript
+import { url } from 'asimilation';
+
+// Only allow GET requests
+url.addPath('/users', (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}, {
+  methods: ['GET']
+});
+
+// Only allow POST requests
+url.addPath('/users', (req, res) => {
+  res.sendJson({ success: true }, 201);
+}, {
+  methods: ['POST']
+});
+```
+
+### Multiple Methods
+
+```typescript
+import { url } from 'asimilation';
+
+// Allow both PUT and PATCH
+url.addPath('/users/:id', (req, res) => {
+  const { id } = req.params;
+  res.sendJson({ id, updated: true }, 200);
+}, {
+  methods: ['PUT', 'PATCH']
+});
+```
+
+### Route-Specific Middleware
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const authMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  const token = req.headers.authorization;
+  if (!token) {
+    res.sendJson({ error: 'Unauthorized' }, 401);
+    return;
+  }
+  next();
+};
+
+url.addPath('/protected', (req, res) => {
+  res.sendJson({ data: 'Protected content' }, 200);
+}, {
+  handlers: [authMiddleware]
+});
+```
+
+### Multiple Middleware
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const logMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+};
+
+const authMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  const token = req.headers.authorization;
+  if (!token) {
+    res.sendJson({ error: 'Unauthorized' }, 401);
+    return;
+  }
+  next();
+};
+
+const validateMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  // Validation logic
+  next();
+};
+
+url.addPath('/api/users', (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}, {
+  methods: ['GET'],
+  handlers: [logMiddleware, authMiddleware, validateMiddleware]
+});
+```
+
+### Methods and Middleware Combined
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const authMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  const token = req.headers.authorization;
+  if (!token) {
+    res.sendJson({ error: 'Unauthorized' }, 401);
+    return;
+  }
+  next();
+};
+
+const adminMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  const userRole = (req as any).user?.role;
+  if (userRole !== 'admin') {
+    res.sendJson({ error: 'Forbidden' }, 403);
+    return;
+  }
+  next();
+};
+
+// Only allow DELETE requests, require auth and admin role
+url.addPath('/users/:id', (req, res) => {
+  const { id } = req.params;
+  res.sendJson({ id, deleted: true }, 200);
+}, {
+  methods: ['DELETE'],
+  handlers: [authMiddleware, adminMiddleware]
+});
+```
+
+### REST API Pattern
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const authMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  // Auth logic
+  next();
+};
+
+// GET /users - List all users
+url.addPath('/users', (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}, {
+  methods: ['GET']
+});
+
+// POST /users - Create user
+url.addPath('/users', (req, res) => {
+  res.sendJson({ success: true }, 201);
+}, {
+  methods: ['POST'],
+  handlers: [authMiddleware]
+});
+
+// GET /users/:id - Get specific user
+url.addPath('/users/:id', (req, res) => {
+  const { id } = req.params;
+  res.sendJson({ id }, 200);
+}, {
+  methods: ['GET']
+});
+
+// PUT /users/:id - Update user
+url.addPath('/users/:id', (req, res) => {
+  const { id } = req.params;
+  res.sendJson({ id, updated: true }, 200);
+}, {
+  methods: ['PUT'],
+  handlers: [authMiddleware]
+});
+
+// DELETE /users/:id - Delete user
+url.addPath('/users/:id', (req, res) => {
+  const { id } = req.params;
+  res.sendJson({ id, deleted: true }, 200);
+}, {
+  methods: ['DELETE'],
+  handlers: [authMiddleware]
+});
+```
+
+### Async Middleware
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const dbMiddleware: Types.MiddlewareFunctionAsync = async (req, res, next) => {
+  try {
+    const data = await fetchFromDatabase();
+    (req as any).data = data;
+    next();
+  } catch (error) {
+    res.sendJson({ error: 'Database error' }, 500);
+  }
+};
+
+async function fetchFromDatabase() {
+  return { value: 'data' };
+}
+
+url.addPath('/data', (req, res) => {
+  const data = (req as any).data;
+  res.sendJson({ data }, 200);
+}, {
+  methods: ['GET'],
+  handlers: [dbMiddleware]
+});
+```
+
+### CORS Options Handler
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const corsMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  next();
+};
+
+// Handle OPTIONS preflight requests
+url.addPath('/api/users', (req, res) => {
+  res.writeHead(204);
+  res.end();
+}, {
+  methods: ['OPTIONS'],
+  handlers: [corsMiddleware]
+});
+
+// Handle actual GET request
+url.addPath('/api/users', (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}, {
+  methods: ['GET'],
+  handlers: [corsMiddleware]
+});
+```
+
+### Validation Middleware
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+const validateUserData: Types.MiddlewareFunctionAsync = async (req, res, next) => {
+  const chunks: Buffer[] = [];
+  
+  req.on('data', (chunk) => chunks.push(chunk));
+  
+  req.on('end', () => {
+    try {
+      const body = JSON.parse(Buffer.concat(chunks).toString());
+      
+      if (!body.name || !body.email) {
+        res.sendJson({ error: 'Missing required fields' }, 400);
+        return;
+      }
+      
+      (req as any).body = body;
+      next();
+    } catch (error) {
+      res.sendJson({ error: 'Invalid JSON' }, 400);
+    }
+  });
+};
+
+url.addPath('/users', (req, res) => {
+  const body = (req as any).body;
+  res.sendJson({ success: true, user: body }, 201);
+}, {
+  methods: ['POST'],
+  handlers: [validateUserData]
+});
+```
+
+### Route Module with PathKwargs
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimulation';
+
+const authMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  // Auth logic
+  next();
+};
+
+const api = url.createRouteModule('/api/v1');
+
+// All routes in module can use PathKwargs
+api.addPath('/users', (req, res) => {
+  res.sendJson({ users: [] }, 200);
+}, {
+  methods: ['GET']
+});
+
+api.addPath('/users/:id', (req, res) => {
+  const { id } = req.params;
+  res.sendJson({ id }, 200);
+}, {
+  methods: ['GET', 'PUT', 'DELETE'],
+  handlers: [authMiddleware]
+});
+```
+
+## Middleware Execution Order
+
+<Note>
+  Middleware executes in the following order:
+  1. Global middleware (via `MiddlewarePipeline.addMiddleware()`)
+  2. Route-specific middleware (via `PathKwargs.handlers`)
+  3. Controller function
+</Note>
+
+```typescript
+import { MiddlewarePipeline, url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+// 1. Global middleware
+MiddlewarePipeline.addMiddleware((req, res, next) => {
+  console.log('1. Global middleware');
+  next();
+});
+
+// 2. Route middleware
+const routeMiddleware: Types.MiddlewareFunction = (req, res, next) => {
+  console.log('2. Route middleware');
+  next();
+};
+
+// 3. Controller
+url.addPath('/test', (req, res) => {
+  console.log('3. Controller');
+  res.sendJson({ success: true }, 200);
+}, {
+  handlers: [routeMiddleware]
+});
+
+// Output:
+// 1. Global middleware
+// 2. Route middleware
+// 3. Controller
+```
+
+## Type Safety
+
+```typescript
+import { url } from 'asimilation';
+import type { Types } from 'asimilation';
+
+// Explicitly typed PathKwargs
+const routeConfig: Types.PathKwargs = {
+  methods: ['GET', 'POST'],
+  handlers: [
+    (req, res, next) => {
+      console.log('Middleware 1');
+      next();
+    },
+    (req, res, next) => {
+      console.log('Middleware 2');
+      next();
+    }
+  ]
+};
+
+url.addPath('/typed', (req, res) => {
+  res.sendJson({ success: true }, 200);
+}, routeConfig);
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="url.addPath()" icon="route" href="/api/url#addpath">
+    Using PathKwargs when adding routes
+  </Card>
+  <Card title="Middleware Types" icon="filter" href="/api/types/middleware">
+    Middleware function type definitions
+  </Card>
+  <Card title="RouteModule" icon="folder-tree" href="/api/route-module">
+    Using PathKwargs with route modules
+  </Card>
+  <Card title="MiddlewarePipeline" icon="filter" href="/api/middleware-pipeline">
+    Global middleware management
+  </Card>
+</CardGroup>

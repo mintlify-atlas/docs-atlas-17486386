@@ -1,0 +1,125 @@
+---
+title: Introduction
+description: Learn about Asimilation, a lightweight TypeScript web framework for building modern HTTP servers
+---
+
+## What is Asimilation?
+
+Asimilation is a minimalist TypeScript web framework designed for building fast, type-safe HTTP servers with an intuitive API. It provides a clean separation between routing, middleware, and request handling, making it easy to build scalable web applications.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Type-Safe" icon="shield-check">
+    Built with TypeScript from the ground up, providing full type safety for your routes and handlers
+  </Card>
+  <Card title="Django-Style Routing" icon="route">
+    Familiar URL patterns with dynamic parameters like `/<int:id>` and `/<str:slug>`
+  </Card>
+  <Card title="Middleware Pipeline" icon="layer-group">
+    Flexible middleware system for both global and route-specific processing
+  </Card>
+  <Card title="Minimal & Fast" icon="bolt">
+    Lightweight core built on Node.js HTTP with minimal dependencies
+  </Card>
+</CardGroup>
+
+## Quick Example
+
+Here's a simple server with both static and dynamic routes:
+
+```typescript
+import { asi, url } from '@asimilation/core';
+
+asi.setup(3000, import.meta.url);
+
+// Static route
+url.addPath("/", (req, res) => {
+  res.sendJson({ message: "Hello, World!" }, 200);
+});
+
+// Dynamic route with parameter
+url.addPath("/<int:id>", (req, res) => {
+  console.log(req.params.id); // Type-safe access to route parameters
+  res.sendJson({ id: req.params.id }, 200);
+});
+
+asi.run();
+```
+
+## How Asimilation Compares
+
+### vs Express
+
+- **Routing**: Asimilation uses Django-style URL patterns (`/<int:id>`) instead of Express's `:id` syntax
+- **Type Safety**: Built with TypeScript first, providing better type inference out of the box
+- **Architecture**: Clearer separation between server setup, routing, and middleware
+
+### vs Fastify
+
+- **Simplicity**: Asimilation focuses on a minimal API surface with less configuration
+- **Learning Curve**: Easier to get started with familiar patterns from Django/Flask
+- **Performance**: Both are performant, but Fastify has more optimization for high-throughput scenarios
+
+## When to Use Asimilation
+
+<Tip>
+Asimilation is perfect for developers who:
+- Want a lightweight framework without the complexity of larger solutions
+- Prefer Django/Flask-style routing patterns
+- Need full TypeScript support from day one
+- Are building APIs, microservices, or backend services
+</Tip>
+
+<Warning>
+Asimilation is currently in early development (v0.0.2). While it's functional for prototypes and small projects, consider more mature frameworks for production-critical applications.
+</Warning>
+
+## Core Concepts
+
+### Server Instance (`asi`)
+
+The main server instance that handles setup and lifecycle:
+
+```typescript
+import { asi } from '@asimilation/core';
+
+asi.setup(port, modulePath);
+asi.run();
+```
+
+### URL Manager (`url`)
+
+The routing manager for defining URL patterns and handlers:
+
+```typescript
+import { url } from '@asimilation/core';
+
+url.addPath("/path", handler, options);
+```
+
+### Route Modules
+
+Organize routes into namespaced modules:
+
+```typescript
+const apiModule = url.createRouteModule("/api");
+apiModule.addPath("/users", handler); // Maps to /api/users
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get a server running in under 5 minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Detailed installation and setup guide
+  </Card>
+  <Card title="Routing" icon="route" href="/core-concepts/routing">
+    Learn about URL patterns and dynamic routes
+  </Card>
+  <Card title="Middleware" icon="layer-group" href="/core-concepts/middlewares">
+    Add processing logic to your request pipeline
+  </Card>
+</CardGroup>

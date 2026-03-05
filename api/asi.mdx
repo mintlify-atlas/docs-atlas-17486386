@@ -1,0 +1,160 @@
+---
+title: 'asi'
+description: 'The main Asimilation server instance for configuring and running your application'
+icon: 'server'
+---
+
+## Overview
+
+The `asi` object is the main server instance of the Asimilation framework. It provides methods to configure your server settings and start the HTTP server.
+
+```typescript
+import { asi } from 'asimilation';
+```
+
+## Type Definition
+
+```typescript
+class Asimilation {
+  setup(port: number, path: string): void
+  run(): void
+  urlManager(): RouteManagerI
+  use(): void
+  setUrlPrefix(prefix: string): void
+}
+```
+
+## Methods
+
+### setup()
+
+Configures the server port and base path before starting the server.
+
+<ParamField path="port" type="number" required>
+  The port number on which the server will listen for incoming requests.
+</ParamField>
+
+<ParamField path="path" type="string" required>
+  The base path for all routes. Use an empty string `""` for no base path.
+</ParamField>
+
+<ResponseField name="return" type="void">
+  This method does not return a value.
+</ResponseField>
+
+**Example:**
+
+```typescript
+import { asi } from 'asimilation';
+
+// Configure server to run on port 3000 with no base path
+asi.setup(3000, '');
+```
+
+```typescript
+// Configure server with base path
+asi.setup(8080, '/api/v1');
+```
+
+---
+
+### run()
+
+Starts the HTTP server and begins listening for incoming requests.
+
+<ResponseField name="return" type="void">
+  This method does not return a value.
+</ResponseField>
+
+<Note>
+  You must call `setup()` before calling `run()` to configure the port and base path.
+</Note>
+
+**Example:**
+
+```typescript
+import { asi } from 'asimilation';
+
+asi.setup(3000, '');
+asi.run(); // Server starts listening on port 3000
+```
+
+---
+
+### urlManager()
+
+Returns the route manager instance for programmatic route manipulation.
+
+<ResponseField name="return" type="RouteManagerI">
+  The route manager interface that allows you to manage routes programmatically.
+</ResponseField>
+
+<Tip>
+  In most cases, you can use the `url` export directly instead of calling `asi.urlManager()`.
+</Tip>
+
+**Example:**
+
+```typescript
+import { asi } from 'asimilation';
+
+const routeManager = asi.urlManager();
+// Use routeManager to manipulate routes programmatically
+```
+
+---
+
+### use()
+
+<Warning>
+  This method is not yet implemented in the current version.
+</Warning>
+
+Intended for adding global middleware to the application.
+
+---
+
+### setUrlPrefix()
+
+<Warning>
+  This method is not yet implemented in the current version.
+</Warning>
+
+Intended for setting a URL prefix for all routes.
+
+<ParamField path="prefix" type="string">
+  The prefix to prepend to all route URLs.
+</ParamField>
+
+## Complete Example
+
+```typescript
+import { asi, url } from 'asimilation';
+
+// Define routes
+url.addPath('/users', (req, res) => {
+  res.sendJson({ users: [] }, 200);
+});
+
+url.addPath('/users/:id', (req, res) => {
+  const userId = req.params.id;
+  res.sendJson({ id: userId }, 200);
+});
+
+// Configure and start server
+asi.setup(3000, '');
+asi.run();
+
+console.log('Server running on http://localhost:3000');
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="url" icon="route" href="/api/url">
+    Route manager for registering paths
+  </Card>
+  <Card title="RouteModule" icon="folder-tree" href="/api/route-module">
+    Organize routes with nested modules
+  </Card>
+</CardGroup>

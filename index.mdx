@@ -1,97 +1,135 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Asimilation"
+description: "A lightweight Node.js backend framework for easily creating routes and handling middlewares"
 ---
 
-## Setting up
+<div className="bg-gradient-to-r from-[#cb0404] to-[#e37b84] text-white rounded-3xl p-12 mb-8 shadow-xl">
+  <h1 className="text-5xl font-bold mb-4">Asimilation</h1>
+  <p className="text-xl opacity-90 mb-6">
+    Build powerful Node.js backends with minimal code. Simple routing, flexible middlewares, and TypeScript support out of the box.
+  </p>
+  <div className="flex gap-4">
+    <a href="/quickstart" className="bg-white text-[#cb0404] px-6 py-3 rounded-full font-semibold hover:bg-[#f3d2d2] transition">
+      Get Started
+    </a>
+    <a href="https://github.com/juanjh1/asimilation" className="bg-transparent border-2 border-white px-6 py-3 rounded-full font-semibold hover:bg-white/10 transition">
+      View on GitHub
+    </a>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+## Why Asimilation?
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+Asimilation is designed to be the simplest way to build Node.js backends. No boilerplate, no complexity—just clean APIs for routing and middleware management.
 
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Lightweight" icon="feather">
+    Minimal dependencies and a small footprint. Get started in seconds without the bloat.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Dynamic Routing" icon="route">
+    Support for static and dynamic paths with parameter types like `/<int:id>` and `/<string:name>`.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Flexible Middlewares" icon="filter">
+    Global and route-specific middleware pipeline for authentication, logging, and more.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="TypeScript First" icon="code">
+    Full TypeScript support with comprehensive type definitions for better DX.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Quick Example
 
-Everything you need to create world-class documentation.
+Get a server running in just a few lines:
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+```typescript index.ts
+import { asi, url } from '@asimilation/core';
 
-## Need inspiration?
+// Configure the server
+asi.setup(3000, import.meta.url);
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+// Add a simple route
+url.addPath("/", (req, res) => {
+  res.sendJson({ message: "Hello from Asimilation!" }, 200);
+});
+
+// Add a dynamic route
+url.addPath("/user/<int:id>", (req, res) => {
+  const userId = req.params.id;
+  res.sendJson({ userId, name: "John Doe" }, 200);
+});
+
+// Start the server
+asi.run();
+```
+
+## Key Features
+
+<CardGroup cols={3}>
+  <Card title="Static & Dynamic Routes" icon="signs-post" href="/core-concepts/routing">
+    Handle both fixed paths and parameterized URLs with type validation
+  </Card>
+  <Card title="Middleware Pipeline" icon="layer-group" href="/core-concepts/middlewares">
+    Chain middlewares globally or per-route for maximum flexibility
+  </Card>
+  <Card title="Route Modules" icon="boxes-stacked" href="/core-concepts/route-modules">
+    Organize routes into namespaced modules for better structure
+  </Card>
+  <Card title="Request/Response Helpers" icon="envelope-open-text" href="/core-concepts/request-response">
+    Convenient methods like sendJson() and sendText() for responses
+  </Card>
+  <Card title="Built-in Middlewares" icon="wrench" href="/middlewares/logger">
+    Logger, timeout, and error handling middlewares included
+  </Card>
+  <Card title="Type Safety" icon="shield-check" href="/installation">
+    Full TypeScript definitions for your entire application
+  </Card>
+</CardGroup>
+
+## Get Started
+
+<Steps>
+  <Step title="Install the package">
+    Add Asimilation to your project with npm, yarn, or pnpm
+    
+    ```bash
+    npm install @asimilation/core
+    ```
+  </Step>
+  
+  <Step title="Create your first server">
+    Set up a basic server with routing
+    
+    ```typescript
+    import { asi, url } from '@asimilation/core';
+    
+    asi.setup(3000, import.meta.url);
+    url.addPath("/", (req, res) => {
+      res.sendJson({ status: "ok" }, 200);
+    });
+    asi.run();
+    ```
+  </Step>
+  
+  <Step title="Add middlewares and dynamic routes">
+    Explore the full power of Asimilation
+    
+    Read the [Quickstart Guide](/quickstart) to learn more
+  </Step>
+</Steps>
+
+## Explore the Documentation
+
+<CardGroup cols={2}>
+  <Card title="Core Concepts" icon="book" href="/core-concepts/routing">
+    Learn about routing, middlewares, and the request/response cycle
+  </Card>
+  <Card title="Guides" icon="map" href="/guides/creating-routes">
+    Step-by-step tutorials for common use cases
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/asi">
+    Complete API documentation for all exports and types
+  </Card>
+  <Card title="Built-in Middlewares" icon="plug" href="/middlewares/logger">
+    Discover the middlewares that come with Asimilation
+  </Card>
+</CardGroup>
